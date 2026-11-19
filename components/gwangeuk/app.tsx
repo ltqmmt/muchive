@@ -268,7 +268,7 @@ function SubScreen({ sub, store }: { sub: Sub; store: StoreState }) {
           <div className="flex flex-col gap-1 px-1">
             <p className="text-muted-foreground">{show.title}</p>
             <h1 className="text-xl font-semibold">{numberName(number)}</h1>
-            <p className="leading-relaxed text-muted-foreground">{number.scene}</p>
+            <p className="text-sm leading-relaxed text-muted-foreground">{number.scene}</p>
           </div>
         )}
         {review && (
@@ -336,15 +336,15 @@ function ShowListScreen({ store, onOpen }: { store: StoreState; onOpen: (showId:
                 }}
               >
                 <span className="flex flex-col gap-1">
-                  <span className="text-lg font-semibold">{show.title}</span>
-                  <span className="font-normal text-muted-foreground">
+                  <span className="text-xl leading-snug font-bold">{show.title}</span>
+                  <span className="text-sm font-normal text-muted-foreground">
                     {formatDate(RUN.start)} ~ {formatDate(RUN.end)} · {show.venue}
                   </span>
-                  <span className="font-normal text-muted-foreground">
+                  <span className="text-sm font-normal text-muted-foreground">
                     후기 {show.reviews.length}개{saved > 0 && ` · 북마크 ${saved}개`}
                     {inProgress && " · 작성 중"}
                   </span>
-                  <span className="line-clamp-2 font-normal">
+                  <span className="mt-1 line-clamp-2 text-base leading-relaxed font-normal">
                     “{[...show.reviews].sort((a, b) => b.bookmarks - a.bookmarks)[0]?.body}”
                   </span>
                 </span>
@@ -360,7 +360,7 @@ function ShowListScreen({ store, onOpen }: { store: StoreState; onOpen: (showId:
 /* ───────────── 탐색: 공연 상세 ───────────── */
 
 function ActHeading({ act }: { act: 1 | 2 }) {
-  return <h2 className="px-1 text-xl font-semibold">{act}막</h2>
+  return <h2 className="px-1 text-lg font-bold">{act}막</h2>
 }
 
 type SortKey = "number" | "likes" | "bookmarks" | "recent"
@@ -423,8 +423,8 @@ function ReviewCard({
         </div>
       )}
       <CardHeader>
-        <CardTitle className="text-base font-medium">{review.author}</CardTitle>
-        <CardDescription>
+        <CardTitle className="text-sm font-semibold">{review.author}</CardTitle>
+        <CardDescription className="text-xs leading-normal">
           {review.watchedOn} 관람{performance && ` · ${pairShort(performance)}`}
           {!plain && !onBody && threadOf(show, review).length > 1 && ` · 관극 후기 이어 읽기 (${threadOf(show, review).length}개 넘버)`}
         </CardDescription>
@@ -457,7 +457,7 @@ function ReviewCard({
             unlikeLabel={`${review.author}님의 후기 좋아요 취소`}
             onLikedChange={() => toggleLike(review.id)}
           />
-          <span className="text-muted-foreground tabular-nums">
+          <span className="text-sm text-muted-foreground tabular-nums">
             <span className="sr-only">좋아요 </span>
             {likes.toLocaleString("ko-KR")}
           </span>
@@ -473,7 +473,7 @@ function ReviewCard({
           >
             <Bookmark strokeWidth={2} fill={bookmarked ? "currentColor" : "none"} aria-hidden />
           </Button>
-          <span className="text-muted-foreground tabular-nums">
+          <span className="text-sm text-muted-foreground tabular-nums">
             <span className="sr-only">북마크 </span>
             {bookmarks.toLocaleString("ko-KR")}
           </span>
@@ -513,8 +513,8 @@ function ShowHeader({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-lg font-semibold">{show.title}</CardTitle>
-        <CardDescription>
+        <CardTitle className="text-2xl leading-tight font-bold">{show.title}</CardTitle>
+        <CardDescription className="text-sm leading-normal">
           {show.venue} · 후기 {show.reviews.length}개
         </CardDescription>
       </CardHeader>
@@ -525,15 +525,15 @@ function ShowHeader({
             onClick={() => onTop(top.id)}
             className="flex flex-col gap-1 rounded-lg bg-muted p-3 text-left"
           >
-            <span className="text-sm text-muted-foreground">북마크가 가장 많은 한 줄 · {numberName(topNumber)}</span>
-            <span className="leading-relaxed">“{top.body}”</span>
-            <span className="text-sm text-primary">원문 보기 →</span>
+            <span className="text-xs font-medium text-muted-foreground">북마크가 가장 많은 한 줄 · {numberName(topNumber)}</span>
+            <span className="text-lg leading-snug font-medium">“{top.body}”</span>
+            <span className="text-sm font-medium text-primary">원문 보기 →</span>
           </button>
         )}
         {roles.length > 0 && (
           <div className="flex flex-col gap-3">
             <div className="flex items-center justify-between">
-              <p className="font-semibold">배우로 후기 골라 보기</p>
+              <p className="text-sm font-semibold">배우로 후기 골라 보기</p>
               {picked.length > 0 && (
                 <Button variant="ghost" size="sm" onClick={onReset}>
                   초기화
@@ -542,7 +542,7 @@ function ShowHeader({
             </div>
             {roles.map((r) => (
               <div key={r.role} className="flex flex-col gap-1">
-                <p className="text-muted-foreground">{r.role}</p>
+                <p className="text-xs font-medium text-muted-foreground">{r.role}</p>
                 <div className="flex flex-wrap gap-2">
                   {r.actors.map((actor) => {
                     const key = `${r.role}|${actor}`
@@ -562,7 +562,7 @@ function ShowHeader({
                 </div>
               </div>
             ))}
-            <p className="text-muted-foreground">
+            <p className="text-sm text-muted-foreground">
               {picked.length > 0 ? `선택한 배우로 본 후기 ${resultCount}개` : "배우를 누르면 그 배우로 본 후기만 모아 볼 수 있어요."}
             </p>
           </div>
@@ -651,7 +651,7 @@ function NumberMap({ show, wishes }: { show: Show; wishes: string[] }) {
   const max = Math.max(1, ...counts.values())
   return (
     <div className="flex flex-col gap-2 px-1">
-      <p className="text-muted-foreground">점이 클수록 관객들이 많이 이야기한 넘버예요. 눌러서 이동해 보세요.</p>
+      <p className="text-xs text-muted-foreground">점이 클수록 관객들이 많이 이야기한 넘버예요. 눌러서 이동해 보세요.</p>
       <div className="flex flex-wrap items-end gap-x-2 gap-y-3" role="list">
         {groupByAct(show.numbers).map(({ act, numbers }) => (
           <div key={act ?? "all"} className="flex flex-wrap items-end gap-1" role="listitem">
@@ -732,10 +732,10 @@ function NumberReviews({
     <section aria-labelledby={`explore-${number.id}`} className="flex flex-col gap-3">
       <div className="flex items-start justify-between gap-2 px-1">
         <div className="flex flex-col gap-1">
-          <h3 id={`explore-${number.id}`} className="scroll-mt-4 text-lg font-semibold">
+          <h3 id={`explore-${number.id}`} className="scroll-mt-4 text-base font-semibold">
             {numberName(number)}
           </h3>
-          <p className="leading-relaxed text-muted-foreground">{number.scene}</p>
+          <p className="text-sm leading-relaxed text-muted-foreground">{number.scene}</p>
         </div>
         <Button
           variant="ghost"
@@ -819,7 +819,7 @@ function ShowDetailScreen({
 
       <div className="flex flex-col gap-3 px-1">
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold">관객 후기</h2>
+          <h2 className="text-xl font-bold">관객 후기</h2>
           <Button variant="ghost" size="sm" aria-pressed={spoiler} onClick={() => setSpoiler(!spoiler)}>
             {spoiler ? <EyeOff data-icon="inline-start" strokeWidth={2} aria-hidden /> : <Eye data-icon="inline-start" strokeWidth={2} aria-hidden />}
             {spoiler ? "스포일러 가림" : "스포일러 가리기"}
@@ -1089,7 +1089,7 @@ function WriteScreen({
                           {index > 0 && <Separator />}
                           <div className="flex flex-col gap-1">
                             <h3 className="text-base font-semibold">{numberName(number)}</h3>
-                            <p className="leading-relaxed text-muted-foreground">{number.scene}</p>
+                            <p className="text-sm leading-relaxed text-muted-foreground">{number.scene}</p>
                           </div>
                         </li>
                       ))}
