@@ -1,6 +1,6 @@
 "use client"
 
-import { ArrowRight, Bookmark, CalendarDays, ChevronLeft, CircleUser, Compass, Eye, EyeOff, Heart, LogOut, Star, NotebookPen, PenLine, Plus, Trash2, X } from "lucide-react"
+import { ArrowRight, Bookmark, CalendarDays, ChevronDown, ChevronLeft, CircleUser, Compass, Eye, EyeOff, Heart, LogOut, Star, NotebookPen, PenLine, Plus, Trash2, X } from "lucide-react"
 import Link from "next/link"
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react"
 
@@ -736,6 +736,7 @@ function NumberReviews({
     store,
   )
   const nav = useContext(NavCtx)
+  const [showCast, setShowCast] = useState(false)
   const visible = list.slice(0, REVIEW_PREVIEW)
   const more = list.length - REVIEW_PREVIEW
   return (
@@ -746,7 +747,31 @@ function NumberReviews({
             {numberName(number)}
           </h3>
           <p className="text-sm leading-relaxed text-muted-foreground">{number.scene}</p>
+          {number.characters && showCast && (
+            <p className="text-sm leading-relaxed">
+              <span className="font-medium text-muted-foreground">등장인물 </span>
+              {number.characters}
+            </p>
+          )}
         </div>
+        <div className="flex shrink-0 items-center">
+        {number.characters && (
+          <Button
+            variant="ghost"
+            size="sm"
+            aria-expanded={showCast}
+            onClick={() => setShowCast(!showCast)}
+            className="text-muted-foreground"
+          >
+            등장인물
+            <ChevronDown
+              data-icon="inline-end"
+              strokeWidth={2}
+              aria-hidden
+              className={showCast ? "rotate-180 transition-transform" : "transition-transform"}
+            />
+          </Button>
+        )}
         <Button
           variant="ghost"
           size="icon"
@@ -757,6 +782,7 @@ function NumberReviews({
         >
           <Star strokeWidth={2} fill={wished ? "currentColor" : "none"} aria-hidden />
         </Button>
+        </div>
       </div>
       <div className="flex flex-col">
         {visible.map((review) => (

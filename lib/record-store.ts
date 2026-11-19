@@ -79,7 +79,9 @@ function migrateV1(raw: string): StoreState {
 const ELISABETH_IDS: Record<string, string> = {
   "el-1": "el-1-0",
   "el-2": "el-1-1",
-  "el-3": "el-1-2b",
+  "el-3": "el-1-2",
+  "el-1-2a": "el-1-2",
+  "el-1-2b": "el-1-2",
   "el-4": "el-1-7b",
   "el-5": "el-1-8b",
   "el-6": "el-2-1a",
