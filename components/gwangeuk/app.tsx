@@ -1,8 +1,8 @@
 "use client"
 
-import { ArrowRight, Bookmark, ChevronLeft, CircleUser, Compass, LogOut, NotebookPen, PenLine, Plus, Trash2, X } from "lucide-react"
+import { ArrowRight, Bookmark, ChevronLeft, CircleUser, Compass, Eye, EyeOff, LogOut, Star, NotebookPen, PenLine, Plus, Trash2, X } from "lucide-react"
 import Link from "next/link"
-import { useState, type ReactNode } from "react"
+import { useEffect, useState, type ReactNode } from "react"
 
 import { signOut, useAuthUser } from "@/components/gwangeuk/auth"
 import { ClueField, type Clue } from "@/components/gwangeuk/clue-field"
@@ -233,6 +233,9 @@ function ShowListScreen({ store, onOpen }: { store: StoreState; onOpen: (showId:
                     후기 {show.reviews.length}개{saved > 0 && ` · 북마크 ${saved}개`}
                     {inProgress && " · 작성 중"}
                   </span>
+                  <span className="line-clamp-2 font-normal">
+                    “{[...show.reviews].sort((a, b) => b.bookmarks - a.bookmarks)[0]?.body}”
+                  </span>
                 </span>
               </MobileListCard>
             </li>
@@ -280,13 +283,17 @@ function ReviewCard({
   show,
   store,
   showNumber,
+  hidden,
 }: {
   review: AudienceReview
   show: Show
   store: StoreState
   /** 넘버 구분 없이 나열할 때 어느 넘버의 후기인지 보여준다 */
   showNumber?: boolean
+  /** 스포일러 가리기 */
+  hidden?: boolean
 }) {
+  const [peek, setPeek] = useState(false)
   const { liked, bookmarked, likes, bookmarks } = reviewCounts(review, store)
   const performance = performanceForReview(show, review.watchedOn)
   const number = showNumber ? show.numbers.find((n) => n.id === review.numberId) : undefined
@@ -304,7 +311,14 @@ function ReviewCard({
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <p className="leading-relaxed">{review.body}</p>
+        {hidden && !peek ? (
+          <button type="button" onClick={() => setPeek(true)} className="text-left leading-relaxed text-muted-foreground">
+            <span className="blur-sm select-none" aria-hidden>{review.body}</span>
+            <span className="sr-only">스포일러 가림. 눌러서 보기</span>
+          </button>
+        ) : (
+          <p className="leading-relaxed">{review.body}</p>
+        )}
       </CardContent>
       <CardFooter className="gap-4 pt-0 pb-2">
         <div className="flex items-center">
@@ -352,13 +366,22 @@ function ScheduleCard({
   performance,
   onSelect,
   onWrite,
+  pairOnly,
+  onPairOnly,
+  wishCount,
 }: {
   show: Show
   store: StoreState
   performance: Performance
   onSelect: (p: Performance) => void
   onWrite: () => void
+  pairOnly: boolean
+  onPairOnly: (v: boolean) => void
+  wishCount: number
 }) {
+  const pairCount = show.reviews.filter((r) => samePair(show, r, performance)).length
+  const top = [...show.reviews].sort((a, b) => b.bookmarks - a.bookmarks)[0]
+  const topNumber = top && show.numbers.find((n) => n.id === top.numberId)
   const sameDay = performancesOn(show, performance.date)
   const playDates = new Set(performancesOf(show).map((p) => p.date))
   const draft = draftOf(store, show.id)
@@ -374,6 +397,14 @@ function ScheduleCard({
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-5">
+        {top && topNumber && (
+          <figure className="flex flex-col gap-1 rounded-lg bg-muted p-3">
+            <figcaption className="text-sm text-muted-foreground">
+              북마크가 가장 많은 한 줄 · {numberName(topNumber)}
+            </figcaption>
+            <blockquote className="leading-relaxed">“{top.body}”</blockquote>
+          </figure>
+        )}
         <div className="flex justify-center">
           <Calendar
             selected={toDate(performance.date)}
@@ -406,6 +437,20 @@ function ScheduleCard({
             ))}
           </ToggleGroup>
           {performance.pair.length > 0 && (
+            <Button
+              variant={pairOnly ? "default" : "outline"}
+              aria-pressed={pairOnly}
+              disabled={pairCount === 0}
+              onClick={() => onPairOnly(!pairOnly)}
+            >
+              {pairCount === 0
+                ? "이 페어로 본 후기는 아직 없어요"
+                : pairOnly
+                  ? `이 페어 후기 ${pairCount}개만 보는 중 (전체 보기)`
+                  : `이 페어로 본 관객 후기 ${pairCount}개 보기`}
+            </Button>
+          )}
+          {performance.pair.length > 0 && (
             <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
               {performance.pair.map((x) => (
                 <div key={x.role} className="contents">
@@ -417,7 +462,14 @@ function ScheduleCard({
           )}
         </div>
       </CardContent>
-      <CardFooter>
+      <CardFooter className="flex-col gap-2">
+        {!past && (
+          <p className="text-muted-foreground">
+            {wishCount > 0
+              ? `기대 넘버 ${wishCount}개를 담았어요. 관람 후 기록할 때 다시 보여드려요.`
+              : "아래 후기에서 ★로 기대되는 넘버를 담아 두세요."}
+          </p>
+        )}
         <Button className="w-full" disabled={!past} onClick={onWrite}>
           <PenLine data-icon="inline-start" strokeWidth={2} aria-hidden />
           {!past
@@ -433,10 +485,76 @@ function ScheduleCard({
 
 const REVIEW_PREVIEW = 2
 
+/** 이 회차와 같은 캐스트 페어로 본 후기인지 */
+function samePair(show: Show, review: AudienceReview, performance: Performance) {
+  const p = performanceForReview(show, review.watchedOn)
+  return !!p && pairShort(p) === pairShort(performance)
+}
+
+/** 관람 전에 "기대되는 넘버"를 고르는 기기 내 저장소 */
+function loadWishes(showId: string): string[] {
+  try {
+    return JSON.parse(localStorage.getItem(`gw-wish-${showId}`) ?? "[]")
+  } catch {
+    return []
+  }
+}
+
+function useWishes(showId: string) {
+  const [wishes, setWishes] = useState<string[]>([])
+  useEffect(() => setWishes(loadWishes(showId)), [showId])
+  const toggle = (id: string) => {
+    const next = wishes.includes(id) ? wishes.filter((w) => w !== id) : [...wishes, id]
+    setWishes(next)
+    try {
+      localStorage.setItem(`gw-wish-${showId}`, JSON.stringify(next))
+    } catch {}
+  }
+  return [wishes, toggle] as const
+}
+
+/** 1막/2막 넘버를 점으로 보여주는 하이라이트 지도. 후기가 많을수록 크게 보인다. */
+function NumberMap({ show, wishes }: { show: Show; wishes: string[] }) {
+  const counts = new Map<string, number>()
+  show.reviews.forEach((r) => counts.set(r.numberId, (counts.get(r.numberId) ?? 0) + 1))
+  const max = Math.max(1, ...counts.values())
+  return (
+    <div className="flex flex-col gap-2 px-1">
+      <p className="text-muted-foreground">점이 클수록 관객들이 많이 이야기한 넘버예요. 눌러서 이동해 보세요.</p>
+      <div className="flex flex-wrap items-end gap-x-2 gap-y-3" role="list">
+        {groupByAct(show.numbers).map(({ act, numbers }) => (
+          <div key={act ?? "all"} className="flex flex-wrap items-end gap-1" role="listitem">
+            {act && <span className="mr-1 text-sm text-muted-foreground">{act}막</span>}
+            {numbers.map((n) => {
+              const c = counts.get(n.id) ?? 0
+              const size = 12 + Math.round((c / max) * 18)
+              return (
+                <button
+                  key={n.id}
+                  type="button"
+                  disabled={c === 0}
+                  aria-label={`${numberName(n)}, 후기 ${c}개${wishes.includes(n.id) ? ", 기대 넘버" : ""}`}
+                  onClick={() =>
+                    document.getElementById(`explore-${n.id}`)?.scrollIntoView({ behavior: "smooth", block: "start" })
+                  }
+                  style={{ width: size, height: size }}
+                  className={`rounded-full bg-primary transition-opacity disabled:opacity-20 ${
+                    wishes.includes(n.id) ? "ring-2 ring-offset-2 ring-primary" : "opacity-60 hover:opacity-100"
+                  }`}
+                />
+              )
+            })}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 const FLAT_PAGE = 10
 
 /** 넘버 구분 없이 정렬 기준대로 모든 후기를 나열한다. */
-function FlatReviews({ show, store, sort }: { show: Show; store: StoreState; sort: SortKey }) {
+function FlatReviews({ show, store, sort, hidden }: { show: Show; store: StoreState; sort: SortKey; hidden: boolean }) {
   const [count, setCount] = useState(FLAT_PAGE)
   const list = sortReviews(show.reviews, sort, store)
   const rest = list.length - count
@@ -444,7 +562,7 @@ function FlatReviews({ show, store, sort }: { show: Show; store: StoreState; sor
     <ol className="flex flex-col gap-3" aria-label="후기 목록">
       {list.slice(0, count).map((review) => (
         <li key={review.id}>
-          <ReviewCard review={review} show={show} store={store} showNumber />
+          <ReviewCard review={review} show={show} store={store} showNumber hidden={hidden} />
         </li>
       ))}
       {rest > 0 && (
@@ -462,10 +580,16 @@ function NumberReviews({
   number,
   show,
   store,
+  hidden,
+  wished,
+  onWish,
 }: {
   number: Show["numbers"][number]
   show: Show
   store: StoreState
+  hidden: boolean
+  wished: boolean
+  onWish: () => void
 }) {
   const [expanded, setExpanded] = useState(false)
   const list = sortReviews(
@@ -474,21 +598,33 @@ function NumberReviews({
     store,
   )
   const visible = expanded ? list : list.slice(0, REVIEW_PREVIEW)
-  const hidden = list.length - REVIEW_PREVIEW
+  const more = list.length - REVIEW_PREVIEW
   return (
     <section aria-labelledby={`explore-${number.id}`} className="flex flex-col gap-3">
-      <div className="flex flex-col gap-1 px-1">
-        <h3 id={`explore-${number.id}`} className="text-lg font-semibold">
-          {numberName(number)}
-        </h3>
-        <p className="leading-relaxed text-muted-foreground">{number.scene}</p>
+      <div className="flex items-start justify-between gap-2 px-1">
+        <div className="flex flex-col gap-1">
+          <h3 id={`explore-${number.id}`} className="scroll-mt-4 text-lg font-semibold">
+            {numberName(number)}
+          </h3>
+          <p className="leading-relaxed text-muted-foreground">{number.scene}</p>
+        </div>
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-pressed={wished}
+          aria-label={wished ? `${numberName(number)} 기대 넘버 해제` : `${numberName(number)} 기대 넘버로 담기`}
+          onClick={onWish}
+          className={wished ? "text-primary" : "text-muted-foreground"}
+        >
+          <Star strokeWidth={2} fill={wished ? "currentColor" : "none"} aria-hidden />
+        </Button>
       </div>
       {visible.map((review) => (
-        <ReviewCard key={review.id} review={review} show={show} store={store} />
+        <ReviewCard key={review.id} review={review} show={show} store={store} hidden={hidden} />
       ))}
-      {hidden > 0 && (
+      {more > 0 && (
         <Button variant="ghost" className="self-center" aria-expanded={expanded} onClick={() => setExpanded(!expanded)}>
-          {expanded ? "접기" : `후기 ${hidden}개 더 보기`}
+          {expanded ? "접기" : `후기 ${more}개 더 보기`}
         </Button>
       )}
     </section>
@@ -509,6 +645,11 @@ function ShowDetailScreen({
     () => findPerformance(show, draft.performanceId) ?? defaultPerformance(show),
   )
   const [sort, setSort] = useState<SortKey>("number")
+  const [pairOnly, setPairOnly] = useState(false)
+  const [spoiler, setSpoiler] = useState(false)
+  const [wishes, toggleWish] = useWishes(show.id)
+  const view: Show = pairOnly ? { ...show, reviews: show.reviews.filter((r) => samePair(show, r, performance)) } : show
+  const numbers = pairOnly ? show.numbers.filter((n) => view.reviews.some((r) => r.numberId === n.id)) : show.numbers
 
   return (
     <div className="flex flex-col gap-6 pt-2 pb-6 break-keep">
@@ -518,10 +659,21 @@ function ShowDetailScreen({
         performance={performance}
         onSelect={setPerformance}
         onWrite={() => onWrite(performance.id)}
+        pairOnly={pairOnly}
+        onPairOnly={setPairOnly}
+        wishCount={wishes.length}
       />
 
+      <NumberMap show={view} wishes={wishes} />
+
       <div className="flex flex-col gap-3 px-1">
-        <h2 className="text-xl font-semibold">관객 후기</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-semibold">관객 후기</h2>
+          <Button variant="ghost" size="sm" aria-pressed={spoiler} onClick={() => setSpoiler(!spoiler)}>
+            {spoiler ? <EyeOff data-icon="inline-start" strokeWidth={2} aria-hidden /> : <Eye data-icon="inline-start" strokeWidth={2} aria-hidden />}
+            {spoiler ? "스포일러 가림" : "스포일러 가리기"}
+          </Button>
+        </div>
         <ToggleGroup
           type="single"
           variant="outline"
@@ -538,16 +690,24 @@ function ShowDetailScreen({
       </div>
 
       {sort === "number" ? (
-        groupByAct(show.numbers).map(({ act, numbers }) => (
+        groupByAct(numbers).map(({ act, numbers }) => (
           <div key={act ?? "all"} className="flex flex-col gap-6">
             {act && <ActHeading act={act} />}
             {numbers.map((number) => (
-              <NumberReviews key={number.id} number={number} show={show} store={store} />
+              <NumberReviews
+                key={number.id}
+                number={number}
+                show={view}
+                store={store}
+                hidden={spoiler}
+                wished={wishes.includes(number.id)}
+                onWish={() => toggleWish(number.id)}
+              />
             ))}
           </div>
         ))
       ) : (
-        <FlatReviews key={sort} show={show} store={store} sort={sort} />
+        <FlatReviews key={sort + pairOnly} show={view} store={store} sort={sort} hidden={spoiler} />
       )}
     </div>
   )
@@ -575,6 +735,8 @@ function WriteScreen({
   const bookmarkedNumbers = show.numbers.filter((n) => bookmarkedFor(show, n.id, store.bookmarks))
   // 북마크가 없으면(최초 작성) 넘버 순서와 장면 설명을 바탕으로 한 AI 모의 후기를 단서로 쓴다.
   const clueNumbers = bookmarkedNumbers.length > 0 ? bookmarkedNumbers : show.numbers
+  const [wishes] = useWishes(show.id)
+  const wishNames = show.numbers.filter((n) => wishes.includes(n.id)).map(numberName)
   const [writeTab, setWriteTab] = useState<WriteTab>("write")
   const [focusId, setFocusId] = useState<string | null>(null)
 
@@ -598,6 +760,13 @@ function WriteScreen({
       }
     >
       <div className="flex flex-col gap-6 pt-2 pb-6 break-keep">
+        {wishNames.length > 0 && (
+          <div className="flex flex-col gap-1 rounded-lg bg-muted p-3">
+            <p className="font-semibold">관람 전에 기대했던 넘버</p>
+            <p className="text-muted-foreground">{wishNames.join(" · ")}</p>
+            <p className="text-muted-foreground">기대와 실제 감상이 어땠는지 적어 보세요.</p>
+          </div>
+        )}
         <div className="flex flex-col gap-3 px-1">
           <div>
             <h1 className="text-xl font-semibold">{show.title}</h1>
