@@ -233,6 +233,7 @@ function SubScreen({ sub, store }: { sub: Sub; store: StoreState }) {
   const show = getShow(sub.showId)
   const review = sub.name === "review" ? show.reviews.find((r) => r.id === sub.reviewId) : undefined
   const number = show.numbers.find((n) => n.id === (review ? review.numberId : sub.name === "number" ? sub.numberId : ""))
+  const thread = review ? threadOf(show, review) : []
   const list = number
     ? sortReviews(show.reviews.filter((r) => r.numberId === number.id), "likes", store)
     : []
@@ -256,6 +257,48 @@ function SubScreen({ sub, store }: { sub: Sub; store: StoreState }) {
         {review && (
           <>
             <ReviewCard review={review} show={show} store={store} plain />
+            {thread.length > 1 && (
+              <section aria-labelledby="thread-heading" className="flex flex-col gap-3">
+                <div className="flex flex-col gap-1 px-1">
+                  <h2 id="thread-heading" className="text-lg font-semibold">
+                    {review.author}님의 {review.watchedOn} 관극 후기
+                  </h2>
+                  <p className="text-muted-foreground">넘버 {thread.length}개로 이어지는 한 편의 후기예요.</p>
+                </div>
+                <ol className="flex flex-col">
+                  {thread.map((r, i) => {
+                    const n = show.numbers.find((x) => x.id === r.numberId)
+                    const current = r.id === review.id
+                    return (
+                      <li key={r.id} className="relative flex gap-3 pb-5 last:pb-0">
+                        {i < thread.length - 1 && <span className="absolute top-4 bottom-0 left-[5px] w-px bg-border" aria-hidden />}
+                        <span
+                          className={`mt-1.5 size-[11px] shrink-0 rounded-full ${current ? "bg-primary" : "border-2 border-border bg-background"}`}
+                          aria-hidden
+                        />
+                        <div className="flex min-w-0 flex-col gap-1">
+                          <p className={`text-sm ${current ? "font-semibold text-primary" : "text-muted-foreground"}`}>
+                            {n ? numberName(n) : ""}
+                            {current && " · 지금 보는 후기"}
+                          </p>
+                          {current ? (
+                            <p className="leading-relaxed">{r.body}</p>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => nav.openReview(show.id, r.id)}
+                              className="text-left leading-relaxed"
+                            >
+                              {r.body}
+                            </button>
+                          )}
+                        </div>
+                      </li>
+                    )
+                  })}
+                </ol>
+              </section>
+            )}
             {number && (
               <Button variant="outline" onClick={() => nav.openNumber(show.id, number.id)}>
                 이 넘버 전체 후기 보러가기 ({list.length})
@@ -378,6 +421,7 @@ function ReviewCard({
         <CardTitle className="text-base font-medium">{review.author}</CardTitle>
         <CardDescription>
           {review.watchedOn} 관람{performance && ` · ${pairShort(performance)}`}
+          {!plain && threadOf(show, review).length > 1 && ` · 관극 후기 이어 읽기 (${threadOf(show, review).length}개 넘버)`}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -487,7 +531,7 @@ function ShowHeader({
               <p className="font-semibold">배우로 후기 골라 보기</p>
               {picked.length > 0 && (
                 <Button variant="ghost" size="sm" onClick={onReset}>
-                  전체 보기
+                  초기화
                 </Button>
               )}
             </div>
@@ -571,6 +615,29 @@ function useWishes(showId: string) {
   return [wishes, toggle] as const
 }
 
+/**
+ * 앱 셸은 바깥이 overflow:hidden이라 scrollIntoView를 쓰면 셸 전체가 밀려 화면이 어긋난다.
+ * 가장 가까운 스크롤 영역만 직접 움직인다.
+ */
+function scrollToId(id: string) {
+  const el = document.getElementById(id)
+  if (!el) return
+  let box: HTMLElement | null = el.parentElement
+  while (box && !/(auto|scroll)/.test(getComputedStyle(box).overflowY)) box = box.parentElement
+  if (!box) return
+  const pad = parseFloat(getComputedStyle(box).scrollPaddingTop) || 0
+  const top = el.getBoundingClientRect().top - box.getBoundingClientRect().top + box.scrollTop - pad
+  box.scrollTo({ top, behavior: "smooth" })
+}
+
+/** 같은 관객이 같은 날 본 관극 후기(넘버 순서). 한 편의 관극 후기를 이루는 스레드다. */
+function threadOf(show: Show, review: AudienceReview) {
+  const order = new Map(show.numbers.map((n, i) => [n.id, i]))
+  return show.reviews
+    .filter((r) => r.author === review.author && r.watchedOn === review.watchedOn)
+    .sort((a, b) => order.get(a.numberId)! - order.get(b.numberId)!)
+}
+
 /** 1막/2막 넘버를 점으로 보여주는 하이라이트 지도. 후기가 많을수록 크게 보인다. */
 function NumberMap({ show, wishes }: { show: Show; wishes: string[] }) {
   const counts = new Map<string, number>()
@@ -592,9 +659,7 @@ function NumberMap({ show, wishes }: { show: Show; wishes: string[] }) {
                   type="button"
                   disabled={c === 0}
                   aria-label={`${numberName(n)}, 후기 ${c}개${wishes.includes(n.id) ? ", 기대 넘버" : ""}`}
-                  onClick={() =>
-                    document.getElementById(`explore-${n.id}`)?.scrollIntoView({ behavior: "smooth", block: "start" })
-                  }
+                  onClick={() => scrollToId(`explore-${n.id}`)}
                   style={{ width: size, height: size }}
                   className={`rounded-full bg-primary transition-opacity disabled:opacity-20 ${
                     wishes.includes(n.id) ? "ring-2 ring-offset-2 ring-primary" : "opacity-60 hover:opacity-100"
