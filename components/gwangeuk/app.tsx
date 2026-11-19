@@ -232,14 +232,22 @@ function SubScreen({ sub, store }: { sub: Sub; store: StoreState }) {
   const nav = useContext(NavCtx)
   const show = getShow(sub.showId)
   const review = sub.name === "review" ? show.reviews.find((r) => r.id === sub.reviewId) : undefined
-  const number = show.numbers.find((n) => n.id === (review ? review.numberId : sub.name === "number" ? sub.numberId : ""))
+  const [focusId, setFocusId] = useState(review?.id)
   const thread = review ? threadOf(show, review) : []
-  const list = number
-    ? sortReviews(show.reviews.filter((r) => r.numberId === number.id), "likes", store)
-    : []
+  const isThread = thread.length > 1
+  const number = show.numbers.find((n) => n.id === (review ? review.numberId : sub.name === "number" ? sub.numberId : ""))
+  const list = number ? sortReviews(show.reviews.filter((r) => r.numberId === number.id), "likes", store) : []
+
+  // 선택한 글이 화면 가운데 오도록 열고, 위아래로 앞뒤 글을 스크롤해서 본다.
+  useEffect(() => {
+    if (isThread && focusId) scrollToId(`thread-${focusId}`, { center: true, instant: true })
+  }, [isThread, focusId])
+
+  const rows = isThread ? show.numbers : number ? [number] : []
+
   return (
     <MobileAppShell
-      title={sub.name === "review" ? "후기" : "전체 후기"}
+      title={sub.name === "review" ? "관극 후기" : "전체 후기"}
       leading={
         <MobileToolbarButton aria-label="뒤로" onClick={() => window.history.back()}>
           <ChevronLeft strokeWidth={2} />
@@ -247,7 +255,16 @@ function SubScreen({ sub, store }: { sub: Sub; store: StoreState }) {
       }
     >
       <div className="flex flex-col gap-4 pt-2 pb-6 break-keep">
-        {number && (
+        {review && (
+          <div className="flex flex-col gap-1 px-1">
+            <p className="text-muted-foreground">{show.title}</p>
+            <h1 className="text-xl font-semibold">
+              {review.author}님의 {review.watchedOn} 관극 후기
+            </h1>
+            {isThread && <p className="text-muted-foreground">넘버 {thread.length}개로 이어지는 한 편의 후기예요. 위아래로 넘겨 보세요.</p>}
+          </div>
+        )}
+        {sub.name === "number" && number && (
           <div className="flex flex-col gap-1 px-1">
             <p className="text-muted-foreground">{show.title}</p>
             <h1 className="text-xl font-semibold">{numberName(number)}</h1>
@@ -255,60 +272,45 @@ function SubScreen({ sub, store }: { sub: Sub; store: StoreState }) {
           </div>
         )}
         {review && (
-          <>
-            <ReviewCard review={review} show={show} store={store} plain />
-            {thread.length > 1 && (
-              <section aria-labelledby="thread-heading" className="flex flex-col gap-3">
-                <div className="flex flex-col gap-1 px-1">
-                  <h2 id="thread-heading" className="text-lg font-semibold">
-                    {review.author}님의 {review.watchedOn} 관극 후기
-                  </h2>
-                  <p className="text-muted-foreground">넘버 {thread.length}개로 이어지는 한 편의 후기예요.</p>
-                </div>
-                <ol className="flex flex-col">
-                  {thread.map((r, i) => {
-                    const n = show.numbers.find((x) => x.id === r.numberId)
-                    const current = r.id === review.id
-                    return (
-                      <li key={r.id} className="relative flex gap-3 pb-5 last:pb-0">
-                        {i < thread.length - 1 && <span className="absolute top-4 bottom-0 left-[5px] w-px bg-border" aria-hidden />}
-                        <span
-                          className={`mt-1.5 size-[11px] shrink-0 rounded-full ${current ? "bg-primary" : "border-2 border-border bg-background"}`}
-                          aria-hidden
+          <ol className="flex flex-col">
+            {rows.map((n, i) => {
+              const r = thread.find((t) => t.numberId === n.id) ?? (isThread ? undefined : review)
+              const current = r?.id === focusId
+              return (
+                <li key={n.id} className={`relative flex gap-3 ${r ? "pb-4" : "pb-2"}`}>
+                  {i < rows.length - 1 && <span className="absolute top-4 bottom-0 left-[5px] w-px bg-border" aria-hidden />}
+                  <span
+                    className={`mt-1.5 shrink-0 rounded-full ${
+                      r ? "size-[11px] bg-primary" : "size-[11px] border-2 border-border bg-background"
+                    }`}
+                    aria-hidden
+                  />
+                  <div className="flex min-w-0 flex-1 flex-col gap-2">
+                    <p className={r ? "font-semibold" : "text-sm text-muted-foreground"}>{numberName(n)}</p>
+                    {r && (
+                      <div id={`thread-${r.id}`} className={current ? "rounded-xl ring-2 ring-primary" : undefined}>
+                        <ReviewCard
+                          review={r}
+                          show={show}
+                          store={store}
+                          plain={current || !isThread}
+                          onBody={isThread ? () => setFocusId(r.id) : undefined}
                         />
-                        <div className="flex min-w-0 flex-col gap-1">
-                          <p className={`text-sm ${current ? "font-semibold text-primary" : "text-muted-foreground"}`}>
-                            {n ? numberName(n) : ""}
-                            {current && " · 지금 보는 후기"}
-                          </p>
-                          {current ? (
-                            <p className="leading-relaxed">{r.body}</p>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => nav.openReview(show.id, r.id)}
-                              className="text-left leading-relaxed"
-                            >
-                              {r.body}
-                            </button>
-                          )}
-                        </div>
-                      </li>
-                    )
-                  })}
-                </ol>
-              </section>
-            )}
-            {number && (
-              <Button variant="outline" onClick={() => nav.openNumber(show.id, number.id)}>
-                이 넘버 전체 후기 보러가기 ({list.length})
-                <ArrowRight data-icon="inline-end" strokeWidth={2} aria-hidden />
-              </Button>
-            )}
-          </>
+                      </div>
+                    )}
+                  </div>
+                </li>
+              )
+            })}
+          </ol>
         )}
-        {sub.name === "number" &&
-          list.map((r) => <ReviewCard key={r.id} review={r} show={show} store={store} />)}
+        {review && number && (
+          <Button variant="outline" onClick={() => nav.openNumber(show.id, number.id)}>
+            {numberName(number)} 전체 후기 보러가기
+            <ArrowRight data-icon="inline-end" strokeWidth={2} aria-hidden />
+          </Button>
+        )}
+        {sub.name === "number" && list.map((r) => <ReviewCard key={r.id} review={r} show={show} store={store} />)}
       </div>
     </MobileAppShell>
   )
@@ -394,7 +396,10 @@ function ReviewCard({
   showNumber,
   hidden,
   plain,
+  onBody,
 }: {
+  /** 본문을 눌렀을 때의 동작. 없으면 후기 페이지로 이동한다 */
+  onBody?: () => void
   review: AudienceReview
   show: Show
   store: StoreState
@@ -421,7 +426,7 @@ function ReviewCard({
         <CardTitle className="text-base font-medium">{review.author}</CardTitle>
         <CardDescription>
           {review.watchedOn} 관람{performance && ` · ${pairShort(performance)}`}
-          {!plain && threadOf(show, review).length > 1 && ` · 관극 후기 이어 읽기 (${threadOf(show, review).length}개 넘버)`}
+          {!plain && !onBody && threadOf(show, review).length > 1 && ` · 관극 후기 이어 읽기 (${threadOf(show, review).length}개 넘버)`}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -436,7 +441,7 @@ function ReviewCard({
           <button
             type="button"
             aria-label={`${review.author}님의 후기 전문 보기`}
-            onClick={() => nav.openReview(show.id, review.id)}
+            onClick={() => (onBody ? onBody() : nav.openReview(show.id, review.id))}
             className="text-left leading-relaxed"
           >
             {review.body}
@@ -619,15 +624,16 @@ function useWishes(showId: string) {
  * 앱 셸은 바깥이 overflow:hidden이라 scrollIntoView를 쓰면 셸 전체가 밀려 화면이 어긋난다.
  * 가장 가까운 스크롤 영역만 직접 움직인다.
  */
-function scrollToId(id: string) {
+function scrollToId(id: string, opts: { center?: boolean; instant?: boolean } = {}) {
   const el = document.getElementById(id)
   if (!el) return
   let box: HTMLElement | null = el.parentElement
   while (box && !/(auto|scroll)/.test(getComputedStyle(box).overflowY)) box = box.parentElement
   if (!box) return
   const pad = parseFloat(getComputedStyle(box).scrollPaddingTop) || 0
-  const top = el.getBoundingClientRect().top - box.getBoundingClientRect().top + box.scrollTop - pad
-  box.scrollTo({ top, behavior: "smooth" })
+  let top = el.getBoundingClientRect().top - box.getBoundingClientRect().top + box.scrollTop - pad
+  if (opts.center) top -= (box.clientHeight - el.offsetHeight) / 2 - pad
+  box.scrollTo({ top, behavior: opts.instant ? "instant" : "smooth" })
 }
 
 /** 같은 관객이 같은 날 본 관극 후기(넘버 순서). 한 편의 관극 후기를 이루는 스레드다. */
