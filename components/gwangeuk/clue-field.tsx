@@ -1,6 +1,6 @@
 "use client"
 
-import { Bookmark, Sparkles } from "lucide-react"
+import { Bookmark } from "lucide-react"
 import { useId } from "react"
 
 import { Badge } from "@/components/ui/badge"
@@ -8,14 +8,14 @@ import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
 
 export type Clue = {
-  kind: "bookmark" | "ai"
+  kind: "bookmark"
   text: string
   author?: string
 }
 
 type ClueFieldProps = {
   label: string
-  clue: Clue
+  clue?: Clue
   value: string
   onChange: (value: string) => void
   onFocus?: () => void
@@ -27,7 +27,7 @@ type ClueFieldProps = {
  */
 export function ClueField({ label, clue, value, onChange, onFocus }: ClueFieldProps) {
   const clueId = useId()
-  const showClue = value.length === 0
+  const showClue = !!clue && value.length === 0
 
   return (
     <div className="flex flex-col gap-2">
@@ -38,15 +38,10 @@ export function ClueField({ label, clue, value, onChange, onFocus }: ClueFieldPr
         )}
         aria-hidden={!showClue}
       >
-        {clue.kind === "bookmark" ? (
+        {clue && (
           <Badge variant="secondary">
             <Bookmark strokeWidth={2} aria-hidden />
             {clue.author}님의 후기
-          </Badge>
-        ) : (
-          <Badge variant="secondary">
-            <Sparkles strokeWidth={2} aria-hidden />
-            AI 모의 후기
           </Badge>
         )}
       </div>
@@ -67,7 +62,7 @@ export function ClueField({ label, clue, value, onChange, onFocus }: ClueFieldPr
             showClue ? "opacity-50" : "opacity-0",
           )}
         >
-          {clue.text}
+          {clue?.text}
         </p>
       </div>
     </div>
