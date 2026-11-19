@@ -8,6 +8,8 @@ export type MusicalNumber = {
   /** 출처의 넘버 번호(예: 1-8B). 있으면 순번 대신 보여준다. */
   code?: string
   title: string
+  /** 이 넘버에 등장하는 인물(출처 표기 그대로). 있으면 제목 옆 토글로 보여준다. */
+  characters?: string
   scene: string
 }
 
@@ -78,6 +80,7 @@ const elisabeth: ShowSeed = {
       act: 1,
       code: "1-0",
       title: "프롤로그",
+      characters: "루이지 루케니, 대공비 소피, 프란츠 요제프, 루돌프, 루도비카, 에스터하지 백작부인, 죽음 외",
       scene: "엘리자벳 암살 혐의로 100년째 재판을 받는 루케니가, 황후는 스스로 죽음을 원했다며 그 시대의 죽은 자들을 증인으로 깨운다.",
     },
     {
@@ -86,23 +89,17 @@ const elisabeth: ShowSeed = {
       act: 1,
       code: "1-1",
       title: "당신처럼",
+      characters: "엘리자벳, 막스 공작, 루이지 루케니, 가정 교사",
       scene: "자유분방한 소녀 엘리자벳이 아버지 막스 공작처럼 얽매이지 않고 살고 싶다고 노래한다.",
     },
     {
-      id: "el-1-2a",
+      id: "el-1-2",
       order: 3,
       act: 1,
-      code: "1-2A",
-      title: "모두 반갑군요",
-      scene: "바이에른 공작 가문에 친척들이 모여 인사를 나누고, 엘리자벳은 그 틈에서 혼자 놀 거리를 찾는다.",
-    },
-    {
-      id: "el-1-2b",
-      order: 4,
-      act: 1,
-      code: "1-2B",
-      title: "론도",
-      scene: "높은 곳에서 떨어진 엘리자벳 앞에 죽음이 처음 나타나고, 그녀를 데려가는 대신 살려 보낸다.",
+      code: "1-2",
+      title: "모두 반가워요",
+      characters: "루도비카, 엘리자벳, 루이지 루케니 외",
+      scene: "바이에른 공작 가문에 친척들이 모여 인사를 나누고, 높은 곳에서 떨어진 엘리자벳 앞에 죽음이 처음 나타나 그녀를 살려 보낸다.",
     },
     {
       id: "el-1-3",
@@ -110,6 +107,7 @@ const elisabeth: ShowSeed = {
       act: 1,
       code: "1-3",
       title: "신이시여 지키소서 우리 젊은 황제",
+      characters: "프란츠 요제프, 대공비 소피, 루이지 루케니 외",
       scene: "젊은 황제 프란츠 요제프가 어머니 조피의 영향 아래 국정을 처리하며 청원과 판결을 내린다.",
     },
     {
@@ -118,6 +116,7 @@ const elisabeth: ShowSeed = {
       act: 1,
       code: "1-4",
       title: "계획이란 소용없어",
+      characters: "대공비 소피, 루이지 루케니, 프란츠 요제프, 엘리자벳, 루도비카, 헬레네",
       scene: "언니 헬레네와의 맞선 자리에서 프란츠 요제프가 뜻밖에 엘리자벳에게 마음을 빼앗긴다.",
     },
     {
@@ -126,6 +125,7 @@ const elisabeth: ShowSeed = {
       act: 1,
       code: "1-5",
       title: "날 혼자 두지 말아요",
+      characters: "엘리자벳, 프란츠 요제프",
       scene: "프란츠 요제프와 엘리자벳이 서로에게 의지하자고 약속하는 사랑의 듀엣.",
     },
     {
@@ -134,70 +134,79 @@ const elisabeth: ShowSeed = {
       act: 1,
       code: "1-6",
       title: "모든 질문은 던져졌다",
+      characters: "루이지 루케니 외",
       scene: "두 사람의 결혼식이 치러지지만, 축복 속에 불길한 예감이 스며든다.",
     },
     {
       id: "el-1-7a",
       order: 9,
       act: 1,
-      code: "1-7A",
+      code: "1-7a",
       title: "그녀는 여기 어울리지 않아",
+      characters: "대공비 소피, 막스 공작 외",
       scene: "결혼 축하 무도회에서 조피와 귀족들이 새 황후를 못마땅하게 수군거린다.",
     },
     {
       id: "el-1-7b",
       order: 10,
       act: 1,
-      code: "1-7B",
+      code: "1-7b",
       title: "마지막 춤",
+      characters: "죽음 외",
       scene: "무도회에 죽음이 나타나 엘리자벳에게 마지막 춤은 결국 자신의 것이라고 경고한다.",
     },
     {
       id: "el-1-7c",
       order: 11,
       act: 1,
-      code: "1-7C",
+      code: "1-7c",
       title: "사랑과 구경꾼들",
+      characters: "엘리자벳, 프란츠 요제프, 루이지 루케니",
       scene: "신혼의 사적인 순간마저 궁정 사람들의 시선과 참견 속에 놓인다.",
     },
     {
       id: "el-1-8a",
       order: 12,
       act: 1,
-      code: "1-8A",
+      code: "1-8a",
       title: "황후는 빛나야 해",
+      characters: "대공비 소피, 엘리자벳, 에스터하지 백작부인, 프란츠 요제프 외",
       scene: "조피가 엘리자벳에게 황후로서 지켜야 할 엄격한 규칙과 일과를 강요한다.",
     },
     {
       id: "el-1-8b",
       order: 13,
       act: 1,
-      code: "1-8B",
+      code: "1-8b",
       title: "나는 나만의 것",
+      characters: "엘리자벳",
       scene: "궁정의 규칙에 지친 엘리자벳이 누구의 소유도 아닌 자신으로 살겠다고 선언한다.",
     },
     {
       id: "el-1-9a",
       order: 14,
       act: 1,
-      code: "1-9A",
+      code: "1-9a",
       title: "결혼의 정거장들",
+      characters: "엘리자벳, 프란츠 요제프, 대공비 소피, 루이지 루케니",
       scene: "결혼 생활의 세월이 흐르고, 아이들의 양육을 두고 엘리자벳과 조피의 갈등이 깊어진다.",
     },
     {
       id: "el-1-9b",
       order: 15,
       act: 1,
-      code: "1-9B",
+      code: "1-9b",
       title: "데브레첸",
+      characters: "엘리자벳 외",
       scene: "황제 부부가 헝가리를 방문하지만 그곳 사람들의 냉담한 반응을 마주한다.",
     },
     {
       id: "el-1-9c",
       order: 16,
       act: 1,
-      code: "1-9C",
+      code: "1-9c",
       title: "그림자는 길어지고",
+      characters: "죽음",
       scene: "헝가리에서 비극을 겪은 뒤 죽음이 다시 엘리자벳 곁에 모습을 드러내고, 그림자가 짙어진다.",
     },
     {
@@ -443,7 +452,7 @@ const elisabeth: ShowSeed = {
   ],
   reviews: [
     { id: "el-r1", numberId: "el-1-0", author: "합스부르크", watchedOn: "11.07", body: "3층 첫 줄에 앉아 막이 열리길 기다렸다. 프롤로그에서 죽은 이들이 하나둘 일어나는데, 오늘은 루케니 목소리가 유난히 거칠어서 시작부터 긴장됐다. 오늘 관극은 길게 가겠구나 싶었다." },
-    { id: "el-r2", numberId: "el-1-2b", author: "토드의그림자", watchedOn: "11.11", body: "죽음이 처음 등장할 때 엘리자벳 쪽으로 손을 뻗다가 거두는 동작이 있다. 이 손짓이 마지막 장면에서 다시 나온다." },
+    { id: "el-r2", numberId: "el-1-2", author: "토드의그림자", watchedOn: "11.11", body: "죽음이 처음 등장할 때 엘리자벳 쪽으로 손을 뻗다가 거두는 동작이 있다. 이 손짓이 마지막 장면에서 다시 나온다." },
     { id: "el-r3", numberId: "el-1-7b", author: "빈의밤", watchedOn: "11.05", body: "무도회 장면에서 다른 인물들이 멈추고 두 사람만 움직이는 순간이 있는데, 그때 바닥 조명 색이 바뀐다." },
     { id: "el-r4", numberId: "el-1-15", author: "합스부르크", watchedOn: "11.07", body: "1막 마지막 넘버. 마지막 음을 끌 때 무대 뒤 거울에 비친 모습까지 보이도록 각도가 잡혀 있다. 인터미션 내내 이 장면이 머릿속에서 떠나지 않았다." },
     { id: "el-r5", numberId: "el-2-1a", author: "3층의자", watchedOn: "11.10", body: "키치 할 때 객석 통로까지 내려온다. 통로석이면 기념품 받는 연기에 같이 참여하게 될 수도." },
