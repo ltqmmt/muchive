@@ -1,8 +1,8 @@
 "use client"
 
-import { ArrowRight, Bookmark, ChevronLeft, CircleUser, Compass, Eye, EyeOff, LogOut, Star, NotebookPen, PenLine, Plus, Trash2, X } from "lucide-react"
+import { ArrowRight, Bookmark, CalendarDays, ChevronLeft, CircleUser, Compass, Eye, EyeOff, LogOut, Star, NotebookPen, PenLine, Plus, Trash2, X } from "lucide-react"
 import Link from "next/link"
-import { useEffect, useState, type ReactNode } from "react"
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react"
 
 import { signOut, useAuthUser } from "@/components/gwangeuk/auth"
 import { ClueField, type Clue } from "@/components/gwangeuk/clue-field"
@@ -18,6 +18,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Badge } from "@/components/ui/badge"
+import { Calendar } from "@/components/ui/calendar"
 import { LikeButton } from "@/components/ui/like-button"
 import { Button } from "@/components/ui/button"
 import { Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -53,14 +54,15 @@ import {
   type StoreState,
 } from "@/lib/record-store"
 import {
-  defaultPerformance,
   findPerformance,
   formatPerformance,
-  isPast,
   pairLabel,
   pairShort,
   performanceForReview,
   castRoles,
+  performancesOf,
+  performancesOn,
+  toIso,
   RUN,
   type Performance,
 } from "@/lib/schedule"
@@ -76,6 +78,13 @@ import {
   type Show,
   type ShowRecord,
 } from "@/lib/show-data"
+
+type Sub = { name: "number"; showId: string; numberId: string } | { name: "review"; showId: string; reviewId: string }
+
+const NavCtx = createContext<{
+  openReview: (showId: string, reviewId: string) => void
+  openNumber: (showId: string, numberId: string) => void
+}>({ openReview: () => {}, openNumber: () => {} })
 
 type Tab = "explore" | "records" | "bookmarks" | "account"
 type View =
@@ -113,6 +122,21 @@ export function GwangeukApp() {
   const [tab, setTab] = useState<Tab>("explore")
   const [exploreShowId, setExploreShowId] = useState<string | null>(null)
   const [view, setView] = useState<View>({ name: "tabs" })
+  const [stack, setStack] = useState<Sub[]>([])
+  useEffect(() => {
+    const onPop = () => setStack((st) => st.slice(0, -1))
+    window.addEventListener("popstate", onPop)
+    return () => window.removeEventListener("popstate", onPop)
+  }, [])
+  const push = (sub: Sub) => {
+    window.history.pushState(null, "")
+    setStack((st) => [...st, sub])
+  }
+  const nav = {
+    openReview: (showId: string, reviewId: string) => push({ name: "review", showId, reviewId }),
+    openNumber: (showId: string, numberId: string) => push({ name: "number", showId, numberId }),
+  }
+  const sub = stack[stack.length - 1]
 
   const openWrite = (showId: string) => setView({ name: "write", showId })
   const backToRecords = () => {
@@ -141,6 +165,9 @@ export function GwangeukApp() {
   const exploreShow = tab === "explore" && exploreShowId ? getShow(exploreShowId) : null
 
   return (
+    <NavCtx.Provider value={nav}>
+    {sub && <SubScreen sub={sub} store={store} />}
+    <div hidden={!!sub}>
     <MobileAppShell
       title={exploreShow?.title}
       leading={
@@ -173,10 +200,7 @@ export function GwangeukApp() {
             key={exploreShow.id}
             show={exploreShow}
             store={store}
-            onWrite={(performanceId) => {
-              setDraftPerformance(exploreShow.id, performanceId)
-              openWrite(exploreShow.id)
-            }}
+            onWrite={() => openWrite(exploreShow.id)}
           />
         ) : (
           <ShowListScreen store={store} onOpen={setExploreShowId} />
@@ -198,6 +222,53 @@ export function GwangeukApp() {
           }}
         />
       )}
+    </MobileAppShell>
+    </div>
+    </NavCtx.Provider>
+  )
+}
+
+/* ───────────── 후기·넘버 상세 페이지 ───────────── */
+
+function SubScreen({ sub, store }: { sub: Sub; store: StoreState }) {
+  const nav = useContext(NavCtx)
+  const show = getShow(sub.showId)
+  const review = sub.name === "review" ? show.reviews.find((r) => r.id === sub.reviewId) : undefined
+  const number = show.numbers.find((n) => n.id === (review ? review.numberId : sub.name === "number" ? sub.numberId : ""))
+  const list = number
+    ? sortReviews(show.reviews.filter((r) => r.numberId === number.id), "likes", store)
+    : []
+  return (
+    <MobileAppShell
+      title={sub.name === "review" ? "후기" : "전체 후기"}
+      leading={
+        <MobileToolbarButton aria-label="뒤로" onClick={() => window.history.back()}>
+          <ChevronLeft strokeWidth={2} />
+        </MobileToolbarButton>
+      }
+    >
+      <div className="flex flex-col gap-4 pt-2 pb-6 break-keep">
+        {number && (
+          <div className="flex flex-col gap-1 px-1">
+            <p className="text-muted-foreground">{show.title}</p>
+            <h1 className="text-xl font-semibold">{numberName(number)}</h1>
+            <p className="leading-relaxed text-muted-foreground">{number.scene}</p>
+          </div>
+        )}
+        {review && (
+          <>
+            <ReviewCard review={review} show={show} store={store} plain />
+            {number && (
+              <Button variant="outline" onClick={() => nav.openNumber(show.id, number.id)}>
+                이 넘버 전체 후기 보러가기 ({list.length})
+                <ArrowRight data-icon="inline-end" strokeWidth={2} aria-hidden />
+              </Button>
+            )}
+          </>
+        )}
+        {sub.name === "number" &&
+          list.map((r) => <ReviewCard key={r.id} review={r} show={show} store={store} />)}
+      </div>
     </MobileAppShell>
   )
 }
@@ -281,23 +352,25 @@ function ReviewCard({
   store,
   showNumber,
   hidden,
-  highlight,
+  plain,
 }: {
   review: AudienceReview
   show: Show
   store: StoreState
-  highlight?: boolean
+  /** 후기 상세 페이지 안에서는 본문을 링크로 만들지 않는다 */
+  plain?: boolean
   /** 넘버 구분 없이 나열할 때 어느 넘버의 후기인지 보여준다 */
   showNumber?: boolean
   /** 스포일러 가리기 */
   hidden?: boolean
 }) {
   const [peek, setPeek] = useState(false)
+  const nav = useContext(NavCtx)
   const { liked, bookmarked, likes, bookmarks } = reviewCounts(review, store)
   const performance = performanceForReview(show, review.watchedOn)
   const number = showNumber ? show.numbers.find((n) => n.id === review.numberId) : undefined
   return (
-    <Card size="sm" id={`review-${review.id}`} className={highlight ? "scroll-mt-4 ring-2 ring-primary" : "scroll-mt-4"}>
+    <Card size="sm" id={`review-${review.id}`} >
       {number && (
         <div className="px-(--card-spacing)">
           <Badge variant="secondary">{numberName(number)}</Badge>
@@ -315,8 +388,17 @@ function ReviewCard({
             <span className="blur-sm select-none" aria-hidden>{review.body}</span>
             <span className="sr-only">스포일러 가림. 눌러서 보기</span>
           </button>
-        ) : (
+        ) : plain ? (
           <p className="leading-relaxed">{review.body}</p>
+        ) : (
+          <button
+            type="button"
+            aria-label={`${review.author}님의 후기 전문 보기`}
+            onClick={() => nav.openReview(show.id, review.id)}
+            className="text-left leading-relaxed"
+          >
+            {review.body}
+          </button>
         )}
       </CardContent>
       <CardFooter className="gap-4 pt-0 pb-2">
@@ -357,7 +439,6 @@ function ReviewCard({
 function ShowHeader({
   show,
   store,
-  performance,
   picked,
   onPick,
   onReset,
@@ -368,7 +449,6 @@ function ShowHeader({
 }: {
   show: Show
   store: StoreState
-  performance: Performance
   picked: string[]
   onPick: (key: string) => void
   onReset: () => void
@@ -382,7 +462,6 @@ function ShowHeader({
   const topNumber = top && show.numbers.find((n) => n.id === top.numberId)
   const draft = draftOf(store, show.id)
   const hasDraft = draftHasText(draft)
-  const past = isPast(performance)
 
   return (
     <Card>
@@ -443,20 +522,14 @@ function ShowHeader({
         )}
       </CardContent>
       <CardFooter className="flex-col gap-2">
-        {!past && (
-          <p className="text-muted-foreground">
-            {wishCount > 0
-              ? `기대 넘버 ${wishCount}개를 담았어요. 관람 후 기록할 때 다시 보여드려요.`
-              : "아래 후기에서 ★로 기대되는 넘버를 담아 두세요."}
-          </p>
+        {wishCount > 0 && (
+          <p className="text-muted-foreground">기대 넘버 {wishCount}개를 담았어요. 기록할 때 다시 보여드려요.</p>
         )}
-        <Button className="w-full" disabled={!past} onClick={onWrite}>
+        <Button className="w-full" onClick={onWrite}>
           <PenLine data-icon="inline-start" strokeWidth={2} aria-hidden />
-          {!past
-            ? "관람 후 기록할 수 있어요"
-            : hasDraft
-              ? `이어서 기록하기 (${filledNumbers(show, store)}/${show.numbers.length})`
-              : "이 공연 기록하기"}
+          {hasDraft
+            ? `이어서 기록하기 (${filledNumbers(show, store)}/${show.numbers.length})`
+            : "이 공연 기록하기"}
         </Button>
       </CardFooter>
     </Card>
@@ -570,9 +643,7 @@ function NumberReviews({
   hidden,
   wished,
   onWish,
-  focusId,
 }: {
-  focusId?: string
   number: Show["numbers"][number]
   show: Show
   store: StoreState
@@ -585,10 +656,8 @@ function NumberReviews({
     "likes",
     store,
   )
-  const [expanded, setExpanded] = useState(false)
-  const hasFocus = !!focusId && list.some((r) => r.id === focusId)
-  const open = expanded || hasFocus
-  const visible = open ? list : list.slice(0, REVIEW_PREVIEW)
+  const nav = useContext(NavCtx)
+  const visible = list.slice(0, REVIEW_PREVIEW)
   const more = list.length - REVIEW_PREVIEW
   return (
     <section aria-labelledby={`explore-${number.id}`} className="flex flex-col gap-3">
@@ -611,11 +680,12 @@ function NumberReviews({
         </Button>
       </div>
       {visible.map((review) => (
-        <ReviewCard key={review.id} review={review} show={show} store={store} hidden={hidden} highlight={review.id === focusId} />
+        <ReviewCard key={review.id} review={review} show={show} store={store} hidden={hidden} />
       ))}
       {more > 0 && (
-        <Button variant="ghost" className="self-center" aria-expanded={open} onClick={() => setExpanded(!open)}>
-          {open ? "접기" : `후기 ${more}개 더 보기`}
+        <Button variant="outline" className="self-start" onClick={() => nav.openNumber(show.id, number.id)}>
+          전체 후기 보러가기 ({list.length})
+          <ArrowRight data-icon="inline-end" strokeWidth={2} aria-hidden />
         </Button>
       )}
     </section>
@@ -629,24 +699,16 @@ function ShowDetailScreen({
 }: {
   show: Show
   store: StoreState
-  onWrite: (performanceId: string) => void
+  onWrite: () => void
 }) {
+  const nav = useContext(NavCtx)
   const draft = draftOf(store, show.id)
-  const performance = findPerformance(show, draft.performanceId) ?? defaultPerformance(show)
+  const draftPerformance = findPerformance(show, draft.performanceId)
   const [sort, setSort] = useState<SortKey>("number")
-  const [picked, setPicked] = useState<string[]>([])
+  const [picked, setPicked] = useState<string[]>(() => draftPerformance?.pair.map((x) => `${x.role}|${x.actor}`) ?? [])
   const [actTab, setActTab] = useState<"all" | "1" | "2">("all")
   const [spoiler, setSpoiler] = useState(false)
-  const [focusId, setFocusId] = useState<string>()
   const hasIntermission = show.numbers.some((n) => n.act)
-  const goToReview = (id: string) => {
-    setPicked([])
-    setActTab("all")
-    setSort("number")
-    setSpoiler(false)
-    setFocusId(id)
-    setTimeout(() => document.getElementById(`review-${id}`)?.scrollIntoView({ behavior: "smooth", block: "center" }), 150)
-  }
   const [wishes, toggleWish] = useWishes(show.id)
   const actNumbers = show.numbers.filter((n) => actTab === "all" || String(n.act) === actTab)
   const actIds = new Set(actNumbers.map((n) => n.id))
@@ -661,29 +723,29 @@ function ShowDetailScreen({
       <ShowHeader
         show={show}
         store={store}
-        performance={performance}
         picked={picked}
         onPick={(key) => setPicked(picked.includes(key) ? picked.filter((k) => k !== key) : [...picked, key])}
         onReset={() => setPicked([])}
         resultCount={view.reviews.length}
-        onWrite={() => onWrite(performance.id)}
+        onWrite={onWrite}
         wishCount={wishes.length}
-        onTop={goToReview}
+        onTop={(id) => nav.openReview(show.id, id)}
       />
 
       {hasIntermission && (
-        <ToggleGroup
-          type="single"
-          variant="outline"
-          value={actTab}
-          onValueChange={(v) => v && setActTab(v as "all" | "1" | "2")}
-          aria-label="막 선택"
-          className="w-full"
-        >
-          <ToggleGroupItem value="all" className="flex-1">전체</ToggleGroupItem>
-          <ToggleGroupItem value="1" className="flex-1">1막</ToggleGroupItem>
-          <ToggleGroupItem value="2" className="flex-1">2막</ToggleGroupItem>
-        </ToggleGroup>
+        <div role="group" aria-label="막 선택" className="flex gap-4 px-1">
+          {(["all", "1", "2"] as const).map((v) => (
+            <button
+              key={v}
+              type="button"
+              aria-pressed={actTab === v}
+              onClick={() => setActTab(v)}
+              className={`py-1 ${actTab === v ? "border-b-2 border-primary font-semibold text-foreground" : "text-muted-foreground"}`}
+            >
+              {v === "all" ? "전체" : `${v}막`}
+            </button>
+          ))}
+        </div>
       )}
 
       <NumberMap show={view} wishes={wishes} />
@@ -724,7 +786,6 @@ function ShowDetailScreen({
                 hidden={spoiler}
                 wished={wishes.includes(number.id)}
                 onWish={() => toggleWish(number.id)}
-                focusId={focusId}
               />
             ))}
           </div>
@@ -737,6 +798,66 @@ function ShowDetailScreen({
 }
 
 /* ───────────── 작성 (Aha) ───────────── */
+
+/** 관람 날짜 선택. 기본은 비어 있고, 고르면 그 회차의 출연진이 자동으로 정해진다. */
+function DateBlock({ show, performance }: { show: Show; performance?: Performance }) {
+  const [open, setOpen] = useState(false)
+  const playDates = new Set(performancesOf(show).map((p) => p.date))
+  const sameDay = performance ? performancesOn(show, performance.date) : []
+  return (
+    <div className="flex flex-col gap-3">
+      <Button variant="outline" className="justify-start" aria-expanded={open} onClick={() => setOpen(!open)}>
+        <CalendarDays data-icon="inline-start" strokeWidth={2} aria-hidden />
+        {performance ? formatPerformance(performance) : "공연 날짜 선택"}
+      </Button>
+      {open && (
+        <div className="flex flex-col gap-3 rounded-lg border p-3">
+          <div className="flex justify-center">
+            <Calendar
+              selected={performance ? new Date(`${performance.date}T00:00:00`) : undefined}
+              today={new Date(`${TODAY}T00:00:00`)}
+              disabled={(date) => !playDates.has(toIso(date)) || toIso(date) > TODAY}
+              onSelect={(date) => {
+                if (!date) return
+                const list = performancesOn(show, toIso(date))
+                if (!list.length) return
+                setDraftPerformance(show.id, list[list.length - 1].id)
+                if (list.length === 1) setOpen(false)
+              }}
+            />
+          </div>
+          {sameDay.length > 1 && (
+            <ToggleGroup
+              type="single"
+              variant="outline"
+              value={performance?.id}
+              onValueChange={(id) => {
+                if (id) {
+                  setDraftPerformance(show.id, id)
+                  setOpen(false)
+                }
+              }}
+              aria-label="공연 시간"
+            >
+              {sameDay.map((p) => (
+                <ToggleGroupItem key={p.id} value={p.id}>
+                  {p.time}
+                </ToggleGroupItem>
+              ))}
+            </ToggleGroup>
+          )}
+        </div>
+      )}
+      {performance && performance.pair.length > 0 ? (
+        <p className="px-1 text-muted-foreground">이 회차 출연진 · {pairLabel(performance)}</p>
+      ) : (
+        !performance && (
+          <p className="px-1 text-muted-foreground">날짜는 나중에 골라도 돼요. 먼저 기억나는 대로 적어 두세요.</p>
+        )
+      )}
+    </div>
+  )
+}
 
 type WriteTab = "write" | "numbers"
 
@@ -772,14 +893,24 @@ function WriteScreen({
         </MobileToolbarButton>
       }
       bottomAction={
-        <Button
-          size="md"
-          className="w-full"
-          disabled={!canSave}
-          onClick={() => onSaved(saveDraft(show.id, (id) => clueFor(show, id, store.bookmarks).kind))}
-        >
-          기록 저장
-        </Button>
+        <div className="flex w-full flex-col gap-2">
+          {canSave && !performance && (
+            <p className="text-center text-muted-foreground">공연 날짜를 선택하면 기록으로 저장할 수 있어요.</p>
+          )}
+          <div className="flex gap-2">
+            <Button size="md" variant="outline" className="flex-1" disabled={!canSave} onClick={onClose}>
+              임시저장
+            </Button>
+            <Button
+              size="md"
+              className="flex-1"
+              disabled={!canSave || !performance}
+              onClick={() => onSaved(saveDraft(show.id, (id) => clueFor(show, id, store.bookmarks).kind))}
+            >
+              기록 저장
+            </Button>
+          </div>
+        </div>
       }
     >
       <div className="flex flex-col gap-6 pt-2 pb-6 break-keep">
@@ -791,18 +922,8 @@ function WriteScreen({
           </div>
         )}
         <div className="flex flex-col gap-3 px-1">
-          <div>
-            <h1 className="text-xl font-semibold">{show.title}</h1>
-            <p className="text-muted-foreground">
-              {performance ? formatPerformance(performance) : show.todayLabel}
-              {performance && performance.pair.length > 0 && (
-                <>
-                  <br />
-                  {pairLabel(performance)}
-                </>
-              )}
-            </p>
-          </div>
+          <h1 className="text-xl font-semibold">{show.title}</h1>
+          <DateBlock show={show} performance={performance} />
           <Progress
             value={(filled / show.numbers.length) * 100}
             aria-label={`${show.numbers.length}개 넘버 중 ${filled}개 기록`}
