@@ -31,7 +31,6 @@ import { Progress } from "@/components/ui/progress"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import { SuccessMark } from "@/components/ui/success-mark"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import {
@@ -962,7 +961,7 @@ function DateBlock({ show, performance }: { show: Show; performance?: Performanc
   )
 }
 
-type WriteTab = "write" | "numbers"
+type WriteTab = "clues" | "all"
 
 function WriteScreen({
   show,
@@ -981,11 +980,22 @@ function WriteScreen({
   const canSave = draftHasText(draft)
   const bookmarkedNumbers = show.numbers.filter((n) => bookmarkedFor(show, n.id, store.bookmarks))
   // 북마크한 후기가 없으면 모든 넘버를 단서 없이 빈 칸으로 보여준다.
-  const clueNumbers = bookmarkedNumbers.length > 0 ? bookmarkedNumbers : show.numbers
+  const hasClues = bookmarkedNumbers.length > 0
   const [wishes] = useWishes(show.id)
   const wishNames = show.numbers.filter((n) => wishes.includes(n.id)).map(numberName)
-  const [writeTab, setWriteTab] = useState<WriteTab>("write")
+  const [writeTab, setWriteTab] = useState<WriteTab>(hasClues ? "clues" : "all")
   const [focusId, setFocusId] = useState<string | null>(null)
+  const [opened, setOpened] = useState<string[]>([])
+  const clueDone = bookmarkedNumbers.filter((n) => (draft.texts[n.id] ?? "").trim()).length
+  const visibleNumbers = writeTab === "clues" && hasClues ? bookmarkedNumbers : show.numbers
+  const goNext = (numberId: string) => {
+    const list = visibleNumbers
+    const next = list.slice(list.findIndex((n) => n.id === numberId) + 1).find((n) => !(draft.texts[n.id] ?? "").trim())
+    if (!next) return
+    setOpened((o) => (o.includes(next.id) ? o : [...o, next.id]))
+    scrollToId(`write-${next.id}`, { center: true })
+    window.setTimeout(() => document.getElementById(`write-${next.id}`)?.querySelector("textarea")?.focus({ preventScroll: true }), 350)
+  }
 
   return (
     <MobileAppShell
@@ -1033,109 +1043,129 @@ function WriteScreen({
           />
         </div>
 
-        <Tabs value={writeTab} onValueChange={(value) => setWriteTab(value as WriteTab)} className="gap-6">
-          <TabsList sizing="fill">
-            <TabsTrigger value="write">북마크한 후기</TabsTrigger>
-            <TabsTrigger value="numbers">실제 목차/넘버</TabsTrigger>
-          </TabsList>
+        {hasClues && (
+          <div className="flex flex-col gap-2 rounded-lg bg-muted p-3">
+            <p className="font-semibold">
+              공연 전에 저장한 단서 {bookmarkedNumbers.length}개 중 {clueDone}개를 떠올렸어요
+            </p>
+            <p className="text-muted-foreground">
+              넘버 순서와 장면을 따라가 보세요. 흐릿한 글은 다른 관객의 후기예요. 한 글자라도 쓰면 사라져요.
+            </p>
+          </div>
+        )}
 
-          <TabsContent value="write" className="flex flex-col gap-6">
-            {clueNumbers.map((number) => (
-              <Card key={number.id}>
-                <CardHeader>
-                  <CardTitle className="text-base font-semibold">
-                    {numberName(number)}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ClueField
-                    label={`${number.title} 기록`}
-                    clue={clueFor(show, number.id, store.bookmarks)}
-                    value={draft.texts[number.id] ?? ""}
-                    onFocus={() => startDraft(show.id)}
-                    onChange={(text) => setDraftText(show.id, number.id, text)}
-                  />
-                </CardContent>
-              </Card>
-            ))}
+        {hasClues && (
+          <ToggleGroup
+            type="single"
+            variant="outline"
+            value={writeTab}
+            onValueChange={(value) => value && setWriteTab(value as WriteTab)}
+            aria-label="보기 방식"
+          >
+            <ToggleGroupItem value="clues">단서 있는 넘버</ToggleGroupItem>
+            <ToggleGroupItem value="all">전체 순서</ToggleGroupItem>
+          </ToggleGroup>
+        )}
 
-            {draft.custom.map((entry, index) => (
-              <Card key={entry.id}>
-                <CardHeader>
-                  <CardTitle className="text-base font-semibold">내 감상 {index + 1}</CardTitle>
-                  <CardAction>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      aria-label={`내 감상 ${index + 1} 삭제`}
-                      className="text-muted-foreground"
-                      onClick={() => removeCustomEntry(show.id, entry.id)}
-                    >
-                      <Trash2 strokeWidth={2} aria-hidden />
-                    </Button>
-                  </CardAction>
-                </CardHeader>
-                <CardContent className="flex flex-col gap-3">
-                  <Select
-                    value={entry.numberId}
-                    onValueChange={(numberId) => updateCustomEntry(show.id, entry.id, { numberId })}
-                  >
-                    <SelectTrigger className="w-full" aria-label={`내 감상 ${index + 1}의 넘버`}>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={WHOLE_SHOW}>공연 전체</SelectItem>
-                      {show.numbers.map((number) => (
-                        <SelectItem key={number.id} value={number.id}>
-                          {numberName(number)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Textarea
-                    aria-label={`내 감상 ${index + 1}`}
-                    autoFocus={entry.id === focusId}
-                    value={entry.text}
-                    onChange={(event) => updateCustomEntry(show.id, entry.id, { text: event.target.value })}
-                    className="min-h-32 resize-none leading-relaxed"
-                  />
-                </CardContent>
-              </Card>
-            ))}
+        <div className="flex flex-col gap-6">
+          {groupByAct(visibleNumbers).map(({ act, numbers }) => (
+            <section key={act ?? "all"} className="flex flex-col gap-3">
+              {act && <ActHeading act={act} />}
+              {numbers.map((number) => {
+                const clue = clueFor(show, number.id, store.bookmarks)
+                const text = draft.texts[number.id] ?? ""
+                const open = !!clue || text.length > 0 || opened.includes(number.id)
+                return (
+                  <Card key={number.id} id={`write-${number.id}`}>
+                    <CardHeader>
+                      <CardTitle className="text-base font-semibold">{numberName(number)}</CardTitle>
+                      <CardDescription className="leading-relaxed">{number.scene}</CardDescription>
+                    </CardHeader>
+                    <CardContent className="flex flex-col gap-3">
+                      {open ? (
+                        <>
+                          <ClueField
+                            label={`${number.title} 기록`}
+                            clue={clue}
+                            value={text}
+                            onFocus={() => startDraft(show.id)}
+                            onChange={(t) => setDraftText(show.id, number.id, t)}
+                          />
+                          {text.trim() && (
+                            <Button variant="ghost" size="sm" className="self-end" onClick={() => goNext(number.id)}>
+                              다음 넘버로
+                              <ArrowRight data-icon="inline-end" strokeWidth={2} aria-hidden />
+                            </Button>
+                          )}
+                        </>
+                      ) : (
+                        <Button
+                          variant="secondary"
+                          onClick={() => {
+                            startDraft(show.id)
+                            setOpened((o) => [...o, number.id])
+                          }}
+                        >
+                          <PenLine data-icon="inline-start" strokeWidth={2} aria-hidden />
+                          이 넘버 기록하기
+                        </Button>
+                      )}
+                    </CardContent>
+                  </Card>
+                )
+              })}
+            </section>
+          ))}
+        </div>
 
-            <Button
-              variant="secondary"
-              className="w-full"
-              onClick={() => setFocusId(addCustomEntry(show.id, WHOLE_SHOW))}
-            >
-              <Plus data-icon="inline-start" strokeWidth={2} aria-hidden />
-              직접 작성하기
-            </Button>
-          </TabsContent>
+        {draft.custom.map((entry, index) => (
+          <Card key={entry.id}>
+            <CardHeader>
+              <CardTitle className="text-base font-semibold">내 감상 {index + 1}</CardTitle>
+              <CardAction>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label={`내 감상 ${index + 1} 삭제`}
+                  className="text-muted-foreground"
+                  onClick={() => removeCustomEntry(show.id, entry.id)}
+                >
+                  <Trash2 strokeWidth={2} aria-hidden />
+                </Button>
+              </CardAction>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-3">
+              <Select
+                value={entry.numberId}
+                onValueChange={(numberId) => updateCustomEntry(show.id, entry.id, { numberId })}
+              >
+                <SelectTrigger className="w-full" aria-label={`내 감상 ${index + 1}의 넘버`}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={WHOLE_SHOW}>공연 전체</SelectItem>
+                  {show.numbers.map((number) => (
+                    <SelectItem key={number.id} value={number.id}>
+                      {numberName(number)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Textarea
+                aria-label={`내 감상 ${index + 1}`}
+                autoFocus={entry.id === focusId}
+                value={entry.text}
+                onChange={(event) => updateCustomEntry(show.id, entry.id, { text: event.target.value })}
+                className="min-h-32 resize-none leading-relaxed"
+              />
+            </CardContent>
+          </Card>
+        ))}
 
-          <TabsContent value="numbers" className="flex flex-col gap-6">
-            {groupByAct(show.numbers).map(({ act, numbers }) => (
-              <section key={act ?? "all"} className="flex flex-col gap-3">
-                {act && <ActHeading act={act} />}
-                <Card>
-                  <CardContent>
-                    <ol className="flex flex-col gap-4">
-                      {numbers.map((number, index) => (
-                        <li key={number.id} className="flex flex-col gap-4">
-                          {index > 0 && <Separator />}
-                          <div className="flex flex-col gap-1">
-                            <h3 className="text-base font-semibold">{numberName(number)}</h3>
-                            <p className="text-sm leading-relaxed text-muted-foreground">{number.scene}</p>
-                          </div>
-                        </li>
-                      ))}
-                    </ol>
-                  </CardContent>
-                </Card>
-              </section>
-            ))}
-          </TabsContent>
-        </Tabs>
+        <Button variant="secondary" className="w-full" onClick={() => setFocusId(addCustomEntry(show.id, WHOLE_SHOW))}>
+          <Plus data-icon="inline-start" strokeWidth={2} aria-hidden />
+          직접 작성하기
+        </Button>
       </div>
     </MobileAppShell>
   )
