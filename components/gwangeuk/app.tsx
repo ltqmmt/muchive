@@ -18,7 +18,6 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Badge } from "@/components/ui/badge"
-import { Calendar } from "@/components/ui/calendar"
 import { LikeButton } from "@/components/ui/like-button"
 import { Button } from "@/components/ui/button"
 import { Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -61,10 +60,8 @@ import {
   pairLabel,
   pairShort,
   performanceForReview,
-  performancesOf,
-  performancesOn,
+  castRoles,
   RUN,
-  toIso,
   type Performance,
 } from "@/lib/schedule"
 import {
@@ -357,39 +354,34 @@ function ReviewCard({
   )
 }
 
-function toDate(iso: string) {
-  const [y, m, d] = iso.split("-").map(Number)
-  return new Date(y, m - 1, d)
-}
-
-function ScheduleCard({
+function ShowHeader({
   show,
   store,
   performance,
-  onSelect,
+  picked,
+  onPick,
+  onReset,
+  resultCount,
   onWrite,
-  pairOnly,
-  onPairOnly,
   wishCount,
   onTop,
 }: {
-  onTop: (reviewId: string) => void
   show: Show
   store: StoreState
   performance: Performance
-  onSelect: (p: Performance) => void
+  picked: string[]
+  onPick: (key: string) => void
+  onReset: () => void
+  resultCount: number
   onWrite: () => void
-  pairOnly: boolean
-  onPairOnly: (v: boolean) => void
   wishCount: number
+  onTop: (reviewId: string) => void
 }) {
-  const pairCount = show.reviews.filter((r) => samePair(show, r, performance)).length
+  const roles = castRoles[show.id] ?? []
   const top = [...show.reviews].sort((a, b) => b.bookmarks - a.bookmarks)[0]
   const topNumber = top && show.numbers.find((n) => n.id === top.numberId)
-  const sameDay = performancesOn(show, performance.date)
-  const playDates = new Set(performancesOf(show).map((p) => p.date))
   const draft = draftOf(store, show.id)
-  const hasDraft = draftHasText(draft) && draft.performanceId === performance.id
+  const hasDraft = draftHasText(draft)
   const past = isPast(performance)
 
   return (
@@ -412,62 +404,43 @@ function ScheduleCard({
             <span className="text-sm text-primary">원문 보기 →</span>
           </button>
         )}
-        <div className="flex justify-center">
-          <Calendar
-            selected={toDate(performance.date)}
-            today={toDate(TODAY)}
-            disabled={(date) => !playDates.has(toIso(date))}
-            onSelect={(date) => {
-              if (!date) return
-              const list = performancesOn(show, toIso(date))
-              if (list.length) onSelect(list[list.length - 1])
-            }}
-          />
-        </div>
-        <Separator />
-        <div className="flex flex-col gap-3">
-          <p className="font-semibold">{formatPerformance(performance).replace(/ \d{2}:\d{2}$/, "")}</p>
-          <ToggleGroup
-            type="single"
-            variant="outline"
-            value={performance.id}
-            onValueChange={(id) => {
-              const next = sameDay.find((p) => p.id === id)
-              if (next) onSelect(next)
-            }}
-            aria-label="공연 시간"
-          >
-            {sameDay.map((p) => (
-              <ToggleGroupItem key={p.id} value={p.id}>
-                {p.time}
-              </ToggleGroupItem>
-            ))}
-          </ToggleGroup>
-          {performance.pair.length > 0 && (
-            <Button
-              variant={pairOnly ? "default" : "outline"}
-              aria-pressed={pairOnly}
-              disabled={pairCount === 0}
-              onClick={() => onPairOnly(!pairOnly)}
-            >
-              {pairCount === 0
-                ? "이 페어로 본 후기는 아직 없어요"
-                : pairOnly
-                  ? `이 페어 후기 ${pairCount}개만 보는 중 (전체 보기)`
-                  : `이 페어로 본 관객 후기 ${pairCount}개 보기`}
-            </Button>
-          )}
-          {performance.pair.length > 0 && (
-            <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
-              {performance.pair.map((x) => (
-                <div key={x.role} className="contents">
-                  <dt className="text-muted-foreground">{x.role}</dt>
-                  <dd className="font-medium">{x.actor}</dd>
+        {roles.length > 0 && (
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <p className="font-semibold">배우로 후기 골라 보기</p>
+              {picked.length > 0 && (
+                <Button variant="ghost" size="sm" onClick={onReset}>
+                  전체 보기
+                </Button>
+              )}
+            </div>
+            {roles.map((r) => (
+              <div key={r.role} className="flex flex-col gap-1">
+                <p className="text-muted-foreground">{r.role}</p>
+                <div className="flex flex-wrap gap-2">
+                  {r.actors.map((actor) => {
+                    const key = `${r.role}|${actor}`
+                    const on = picked.includes(key)
+                    return (
+                      <Button
+                        key={key}
+                        size="sm"
+                        variant={on ? "default" : "outline"}
+                        aria-pressed={on}
+                        onClick={() => onPick(key)}
+                      >
+                        {actor}
+                      </Button>
+                    )
+                  })}
                 </div>
-              ))}
-            </dl>
-          )}
-        </div>
+              </div>
+            ))}
+            <p className="text-muted-foreground">
+              {picked.length > 0 ? `선택한 배우로 본 후기 ${resultCount}개` : "배우를 누르면 그 배우로 본 후기만 모아 볼 수 있어요."}
+            </p>
+          </div>
+        )}
       </CardContent>
       <CardFooter className="flex-col gap-2">
         {!past && (
@@ -492,10 +465,15 @@ function ScheduleCard({
 
 const REVIEW_PREVIEW = 2
 
-/** 이 회차와 같은 캐스트 페어로 본 후기인지 */
-function samePair(show: Show, review: AudienceReview, performance: Performance) {
+/** 선택한 배우들로 본 후기인지. 같은 역할 안에서는 하나라도 맞으면 되고, 역할이 다르면 모두 맞아야 한다. */
+function matchesCast(show: Show, review: AudienceReview, picked: string[]) {
+  if (picked.length === 0) return true
   const p = performanceForReview(show, review.watchedOn)
-  return !!p && pairShort(p) === pairShort(performance)
+  if (!p) return false
+  const roles = new Set(picked.map((k) => k.split("|")[0]))
+  return [...roles].every((role) =>
+    p.pair.some((x) => x.role === role && picked.includes(`${role}|${x.actor}`)),
+  )
 }
 
 /** 관람 전에 "기대되는 넘버"를 고르는 기기 내 저장소 */
@@ -509,6 +487,8 @@ function loadWishes(showId: string): string[] {
 
 function useWishes(showId: string) {
   const [wishes, setWishes] = useState<string[]>([])
+  // 서버 렌더링과 맞추기 위해 마운트 뒤에 브라우저 저장값을 읽는다.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => setWishes(loadWishes(showId)), [showId])
   const toggle = (id: string) => {
     const next = wishes.includes(id) ? wishes.filter((w) => w !== id) : [...wishes, id]
@@ -607,10 +587,8 @@ function NumberReviews({
   )
   const [expanded, setExpanded] = useState(false)
   const hasFocus = !!focusId && list.some((r) => r.id === focusId)
-  useEffect(() => {
-    if (hasFocus) setExpanded(true)
-  }, [hasFocus, focusId])
-  const visible = expanded ? list : list.slice(0, REVIEW_PREVIEW)
+  const open = expanded || hasFocus
+  const visible = open ? list : list.slice(0, REVIEW_PREVIEW)
   const more = list.length - REVIEW_PREVIEW
   return (
     <section aria-labelledby={`explore-${number.id}`} className="flex flex-col gap-3">
@@ -636,8 +614,8 @@ function NumberReviews({
         <ReviewCard key={review.id} review={review} show={show} store={store} hidden={hidden} highlight={review.id === focusId} />
       ))}
       {more > 0 && (
-        <Button variant="ghost" className="self-center" aria-expanded={expanded} onClick={() => setExpanded(!expanded)}>
-          {expanded ? "접기" : `후기 ${more}개 더 보기`}
+        <Button variant="ghost" className="self-center" aria-expanded={open} onClick={() => setExpanded(!open)}>
+          {open ? "접기" : `후기 ${more}개 더 보기`}
         </Button>
       )}
     </section>
@@ -654,37 +632,59 @@ function ShowDetailScreen({
   onWrite: (performanceId: string) => void
 }) {
   const draft = draftOf(store, show.id)
-  const [performance, setPerformance] = useState<Performance>(
-    () => findPerformance(show, draft.performanceId) ?? defaultPerformance(show),
-  )
+  const performance = findPerformance(show, draft.performanceId) ?? defaultPerformance(show)
   const [sort, setSort] = useState<SortKey>("number")
-  const [pairOnly, setPairOnly] = useState(false)
+  const [picked, setPicked] = useState<string[]>([])
+  const [actTab, setActTab] = useState<"all" | "1" | "2">("all")
   const [spoiler, setSpoiler] = useState(false)
   const [focusId, setFocusId] = useState<string>()
+  const hasIntermission = show.numbers.some((n) => n.act)
   const goToReview = (id: string) => {
-    setPairOnly(false)
+    setPicked([])
+    setActTab("all")
     setSort("number")
     setSpoiler(false)
     setFocusId(id)
     setTimeout(() => document.getElementById(`review-${id}`)?.scrollIntoView({ behavior: "smooth", block: "center" }), 150)
   }
   const [wishes, toggleWish] = useWishes(show.id)
-  const view: Show = pairOnly ? { ...show, reviews: show.reviews.filter((r) => samePair(show, r, performance)) } : show
-  const numbers = pairOnly ? show.numbers.filter((n) => view.reviews.some((r) => r.numberId === n.id)) : show.numbers
+  const actNumbers = show.numbers.filter((n) => actTab === "all" || String(n.act) === actTab)
+  const actIds = new Set(actNumbers.map((n) => n.id))
+  const view: Show = {
+    ...show,
+    reviews: show.reviews.filter((r) => actIds.has(r.numberId) && matchesCast(show, r, picked)),
+  }
+  const numbers = picked.length > 0 ? actNumbers.filter((n) => view.reviews.some((r) => r.numberId === n.id)) : actNumbers
 
   return (
     <div className="flex flex-col gap-6 pt-2 pb-6 break-keep">
-      <ScheduleCard
+      <ShowHeader
         show={show}
         store={store}
         performance={performance}
-        onSelect={setPerformance}
+        picked={picked}
+        onPick={(key) => setPicked(picked.includes(key) ? picked.filter((k) => k !== key) : [...picked, key])}
+        onReset={() => setPicked([])}
+        resultCount={view.reviews.length}
         onWrite={() => onWrite(performance.id)}
-        pairOnly={pairOnly}
-        onPairOnly={setPairOnly}
         wishCount={wishes.length}
         onTop={goToReview}
       />
+
+      {hasIntermission && (
+        <ToggleGroup
+          type="single"
+          variant="outline"
+          value={actTab}
+          onValueChange={(v) => v && setActTab(v as "all" | "1" | "2")}
+          aria-label="막 선택"
+          className="w-full"
+        >
+          <ToggleGroupItem value="all" className="flex-1">전체</ToggleGroupItem>
+          <ToggleGroupItem value="1" className="flex-1">1막</ToggleGroupItem>
+          <ToggleGroupItem value="2" className="flex-1">2막</ToggleGroupItem>
+        </ToggleGroup>
+      )}
 
       <NumberMap show={view} wishes={wishes} />
 
@@ -714,7 +714,7 @@ function ShowDetailScreen({
       {sort === "number" ? (
         groupByAct(numbers).map(({ act, numbers }) => (
           <div key={act ?? "all"} className="flex flex-col gap-6">
-            {act && <ActHeading act={act} />}
+            {act && actTab === "all" && <ActHeading act={act} />}
             {numbers.map((number) => (
               <NumberReviews
                 key={number.id}
@@ -730,7 +730,7 @@ function ShowDetailScreen({
           </div>
         ))
       ) : (
-        <FlatReviews key={sort + pairOnly} show={view} store={store} sort={sort} hidden={spoiler} />
+        <FlatReviews key={sort + picked.join() + actTab} show={view} store={store} sort={sort} hidden={spoiler} />
       )}
     </div>
   )
