@@ -17,10 +17,6 @@ export type Performance = {
 export const RUN = { start: "2026-10-27", end: "2026-12-13" }
 
 export const castRoles: Record<string, CastRole[]> = {
-  "winter-garden": [
-    { role: "해온", actors: ["이서진", "한결"] },
-    { role: "도윤", actors: ["박건우", "정하람"] },
-  ],
   elisabeth: [
     { role: "엘리자벳", actors: ["한서윤", "윤채원"] },
     { role: "죽음", actors: ["도하준", "서이안", "류시온"] },

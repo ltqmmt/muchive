@@ -765,10 +765,8 @@ function ShowDetailScreen({
   onWrite: () => void
 }) {
   const nav = useContext(NavCtx)
-  const draft = draftOf(store, show.id)
-  const draftPerformance = findPerformance(show, draft.performanceId)
   const [sort, setSort] = useState<SortKey>("number")
-  const [picked, setPicked] = useState<string[]>(() => draftPerformance?.pair.map((x) => `${x.role}|${x.actor}`) ?? [])
+  const [picked, setPicked] = useState<string[]>([])
   const [actTab, setActTab] = useState<"all" | "1" | "2">("all")
   const [spoiler, setSpoiler] = useState(false)
   const hasIntermission = show.numbers.some((n) => n.act)
