@@ -458,7 +458,7 @@ function ShowListScreen({ store, onOpen }: { store: StoreState; onOpen: (showId:
             <p className="mt-3 text-sm font-semibold text-muted-foreground">
               {show.title} · {numberLabel(show, review.numberId)}
             </p>
-            <ReviewCard review={review} show={show} store={store} plain />
+            <ReviewCard review={review} show={show} store={store} />
           </div>
         ))}
       </section>
