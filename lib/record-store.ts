@@ -3,7 +3,7 @@
 import { useSyncExternalStore } from "react"
 
 import { findPerformance, pairLabel } from "@/lib/schedule"
-import { getShow, seedRecords, TODAY, type RecordEntry, type ShowRecord } from "@/lib/show-data"
+import { getShow, seedRecords, shows, TODAY, type RecordEntry, type ShowRecord } from "@/lib/show-data"
 
 export type CustomEntry = {
   id: string
@@ -107,6 +107,16 @@ function migrateElisabeth(s: StoreState): StoreState {
   }
 }
 
+/** 삭제된 공연의 기록·작성 중인 글은 보여줄 수 없으니 정리한다. */
+function dropRemovedShows(s: StoreState): StoreState {
+  const known = (id: string) => shows.some((x) => x.id === id)
+  return {
+    ...s,
+    records: s.records.filter((r) => known(r.showId)),
+    drafts: Object.fromEntries(Object.entries(s.drafts).filter(([id]) => known(id))),
+  }
+}
+
 function load() {
   if (loaded || typeof window === "undefined") return
   loaded = true
@@ -120,12 +130,12 @@ function load() {
         records: Array.isArray(saved.records) ? saved.records : initialState.records,
         drafts: saved.drafts && typeof saved.drafts === "object" ? saved.drafts : {},
       }
-      state = migrateElisabeth(state)
+      state = dropRemovedShows(migrateElisabeth(state))
       return
     }
     const legacy = window.localStorage.getItem(LEGACY_KEY)
     if (legacy) {
-      state = migrateV1(legacy)
+      state = dropRemovedShows(migrateV1(legacy))
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
       window.localStorage.removeItem(LEGACY_KEY)
     }

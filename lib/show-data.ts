@@ -64,64 +64,6 @@ export const TODAY = "2026-11-12"
 
 /* 모든 공연 데이터(넘버 구성, 장면 설명, 관객 후기)는 화면 확인용 예시입니다. */
 
-const winterGarden: ShowSeed = {
-  id: "winter-garden",
-  title: "겨울 정원",
-  venue: "달빛아트홀",
-  todayLabel: "11월 12일 (목) 19:30",
-  cast: "해온 이서진 · 도윤 박건우",
-  numbers: [
-    {
-      id: "wg-1",
-      order: 1,
-      title: "서곡 – 첫눈",
-      scene: "막이 오르면 텅 빈 온실에 눈이 내리고, 정원사 해온이 얼어붙은 화분을 하나씩 닦는다.",
-    },
-    {
-      id: "wg-2",
-      order: 2,
-      title: "아무도 오지 않는 정원",
-      scene: "해온이 객석 쪽 창문을 열고 \"올해도 봄은 늦겠지\"라고 혼잣말한 뒤 첫 솔로를 부른다.",
-    },
-    {
-      id: "wg-3",
-      order: 3,
-      title: "편지",
-      scene: "해온이 형 도윤이 남긴 편지를 발견한다. 편지를 읽는 동안 조명이 반으로 나뉘고, 반대편에서 도윤이 같은 문장을 노래한다.",
-    },
-    {
-      id: "wg-4",
-      order: 4,
-      title: "두 개의 계절",
-      scene: "형제가 무대 양끝에서 서로를 보지 못한 채 화음을 쌓고, 마지막 소절에서 처음으로 눈을 맞춘다.",
-    },
-    {
-      id: "wg-5",
-      order: 5,
-      title: "겨울이 끝나는 법",
-      scene: "해온이 온실 천장의 유리를 깨고, 쏟아지는 눈 속에서 클라이맥스를 부른다.",
-    },
-    {
-      id: "wg-6",
-      order: 6,
-      title: "커튼콜 – 봄의 첫 잎",
-      scene: "모든 조명이 꺼지고, 무대 중앙 화분의 작은 새싹 하나만 빛을 받는다.",
-    },
-  ],
-  reviews: [
-    { id: "wg-r1", numberId: "wg-1", author: "겨울관객", watchedOn: "11.08", body: "화분 닦을 때 입김이 보이도록 조명을 낮춘 게 좋았다. 오른쪽 세 번째 화분만 끝까지 안 닦는데, 그게 형의 화분이라는 걸 나중에 알았다." },
-    { id: "wg-r2", numberId: "wg-1", author: "온실지기", watchedOn: "11.05", body: "서곡 첫 음이 첼로 솔로로 시작해서 눈 떨어지는 속도랑 박자가 맞는다. 처음 보는 분들은 눈 내리는 타이밍을 꼭 보세요." },
-    { id: "wg-r3", numberId: "wg-2", author: "2층C열", watchedOn: "11.11", body: "\"올해도 봄은 늦겠지\" 하고 창문 닫으려다 멈추는 손. 오늘 이서진 배우는 창틀에 이마를 잠깐 대고 있다가 노래를 시작했다." },
-    { id: "wg-r4", numberId: "wg-2", author: "봄을기다림", watchedOn: "11.06", body: "솔로 2절에서 '아무도'를 반 박자 늦게 부르는데 회차마다 길이가 다르다. 오늘은 거의 한 마디를 쉬었다." },
-    { id: "wg-r5", numberId: "wg-3", author: "편지는두번", watchedOn: "11.11", body: "편지 마지막 줄 '창문은 열어둬'를 해온은 읽기만 하고 도윤만 노래한다. 그다음 해온이 2막 내내 창문을 열어두는 게 이 장면 때문." },
-    { id: "wg-r6", numberId: "wg-3", author: "겨울관객", watchedOn: "11.08", body: "조명이 갈라질 때 무대 바닥에 선이 그어지는데, 도윤이 그 선을 한 번 밟으려다 물러난다. 놓치기 쉬운 동작." },
-    { id: "wg-r7", numberId: "wg-4", author: "온실지기", watchedOn: "11.05", body: "눈 맞추는 마지막 소절에서 둘 다 숨을 같이 쉰다. 마이크로 들릴 만큼 크게. 오늘은 박건우 배우가 먼저 웃었다." },
-    { id: "wg-r8", numberId: "wg-4", author: "2층C열", watchedOn: "11.11", body: "2층에서 보면 둘이 서 있는 자리가 정확히 대칭이고, 바닥 조명이 계절 색으로 나뉜다. 왼쪽 겨울, 오른쪽 가을." },
-    { id: "wg-r9", numberId: "wg-5", author: "봄을기다림", watchedOn: "11.06", body: "유리 깨지는 소리 다음 반 초 정적, 그리고 눈이 쏟아진다. 고음은 눈이 다 떨어질 때까지 버티는 게 연출 의도라고." },
-    { id: "wg-r10", numberId: "wg-6", author: "편지는두번", watchedOn: "11.11", body: "새싹 조명이 켜지기 전 3초 암전 동안 도윤의 허밍이 아주 작게 들린다. 앞쪽 자리에서만 들리는 듯." },
-  ],
-}
-
 // 넘버 구성(한국 공연 기준 1막·2막 넘버 제목과 번호): 한국어 위키백과 「엘리자벳 (뮤지컬)」 (CC BY-SA 4.0)
 // 장면 설명은 같은 문서의 줄거리를 바탕으로 새로 요약한 것이고, 관객 후기는 예시 문장이다.
 const elisabeth: ShowSeed = {
@@ -500,15 +442,15 @@ const elisabeth: ShowSeed = {
     },
   ],
   reviews: [
-    { id: "el-r1", numberId: "el-1-0", author: "합스부르크", watchedOn: "11.07", body: "프롤로그에서 인물들이 일어나는 순서가 회차마다 조금 다르다. 오늘은 루케니 목소리가 유난히 거칠어서 시작부터 긴장됐다." },
+    { id: "el-r1", numberId: "el-1-0", author: "합스부르크", watchedOn: "11.07", body: "3층 첫 줄에 앉아 막이 열리길 기다렸다. 프롤로그에서 죽은 이들이 하나둘 일어나는데, 오늘은 루케니 목소리가 유난히 거칠어서 시작부터 긴장됐다. 오늘 관극은 길게 가겠구나 싶었다." },
     { id: "el-r2", numberId: "el-1-2b", author: "토드의그림자", watchedOn: "11.11", body: "죽음이 처음 등장할 때 엘리자벳 쪽으로 손을 뻗다가 거두는 동작이 있다. 이 손짓이 마지막 장면에서 다시 나온다." },
     { id: "el-r3", numberId: "el-1-7b", author: "빈의밤", watchedOn: "11.05", body: "무도회 장면에서 다른 인물들이 멈추고 두 사람만 움직이는 순간이 있는데, 그때 바닥 조명 색이 바뀐다." },
-    { id: "el-r4", numberId: "el-1-15", author: "합스부르크", watchedOn: "11.07", body: "1막 마지막 넘버. 마지막 음을 끌 때 무대 뒤 거울에 비친 모습까지 보이도록 각도가 잡혀 있다." },
+    { id: "el-r4", numberId: "el-1-15", author: "합스부르크", watchedOn: "11.07", body: "1막 마지막 넘버. 마지막 음을 끌 때 무대 뒤 거울에 비친 모습까지 보이도록 각도가 잡혀 있다. 인터미션 내내 이 장면이 머릿속에서 떠나지 않았다." },
     { id: "el-r5", numberId: "el-2-1a", author: "3층의자", watchedOn: "11.10", body: "키치 할 때 객석 통로까지 내려온다. 통로석이면 기념품 받는 연기에 같이 참여하게 될 수도." },
     { id: "el-r6", numberId: "el-1-8b", author: "빈의밤", watchedOn: "11.05", body: "1막에서 가장 기다리는 넘버. 노래 중간 숨 고르는 구간에서 객석이 같이 숨을 참는 게 느껴진다." },
     { id: "el-r7", numberId: "el-2-2", author: "토드의그림자", watchedOn: "11.11", body: "두 사람이 무대 양쪽에서 시작해 점점 가까워지는 동선. 마지막에 엘리자벳이 먼저 등을 돌린다." },
     { id: "el-r8", numberId: "el-2-11b", author: "3층의자", watchedOn: "11.10", body: "루돌프가 손을 내밀 때 엘리자벳이 반 박자 늦게 고개를 돌린다. 그 반 박자가 이 장면의 전부." },
-    { id: "el-r9", numberId: "el-2-13", author: "합스부르크", watchedOn: "11.07", body: "추도곡에서 조명이 관 하나만 남기고 전부 꺼진다. 2막에서 가장 조용한데 가장 크게 울린다." },
+    { id: "el-r9", numberId: "el-2-13", author: "합스부르크", watchedOn: "11.07", body: "추도곡에서 조명이 관 하나만 남기고 전부 꺼진다. 2막에서 가장 조용한데 가장 크게 울린다. 이쯤에서 이미 눈물이 났다." },
     { id: "el-r10", numberId: "el-2-16b", author: "빈의밤", watchedOn: "11.05", body: "마지막 장면은 1층보다 2층에서 볼 때 무대 바닥 조명 모양이 더 잘 보인다." },
   ],
 }
@@ -632,7 +574,7 @@ function build(seed: ShowSeed): Show {
   return { ...seed, reviews }
 }
 
-export const shows: Show[] = [winterGarden, elisabeth, deathNote, sweeneyTodd].map(build)
+export const shows: Show[] = [elisabeth, deathNote, sweeneyTodd].map(build)
 
 export function numberName(number: MusicalNumber) {
   return `${number.code ?? number.order}. ${number.title}`
@@ -653,14 +595,14 @@ export function getShow(showId: string) {
 export const seedRecords: ShowRecord[] = [
   {
     id: "rec-1028",
-    showId: "winter-garden",
+    showId: "elisabeth",
     date: "2026-10-28",
-    cast: "해온 이서진 · 도윤 정하람",
+    cast: "엘리자벳 한서윤 · 죽음 도하준 · 루케니 강민혁",
     durationSec: 1260,
     entries: [
-      { numberId: "wg-2", text: "창문 열 때 찬 바람 효과음이 났다. 혼잣말이 생각보다 담담해서 더 쓸쓸했다.", clue: "own" },
-      { numberId: "wg-4", text: "마지막에 눈 마주칠 때 울컥했다.", clue: "own" },
-      { numberId: "wg-5", text: "눈이 너무 많이 쏟아져서 배우 얼굴이 잘 안 보였다.", clue: "own" },
+      { numberId: "el-1-0", text: "프롤로그에서 죽은 이들이 일어나는 장면부터 소름이 돋았다. 루케니의 첫 대사가 인상적이었다.", clue: "own" },
+      { numberId: "el-1-8b", text: "마지막 고음에서 울컥했다.", clue: "own" },
+      { numberId: "el-2-13", text: "조명이 거의 꺼진 추도곡이 가장 오래 남았다.", clue: "own" },
     ],
   },
 ]
