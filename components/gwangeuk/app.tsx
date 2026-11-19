@@ -284,10 +284,12 @@ function ReviewCard({
   store,
   showNumber,
   hidden,
+  highlight,
 }: {
   review: AudienceReview
   show: Show
   store: StoreState
+  highlight?: boolean
   /** 넘버 구분 없이 나열할 때 어느 넘버의 후기인지 보여준다 */
   showNumber?: boolean
   /** 스포일러 가리기 */
@@ -298,7 +300,7 @@ function ReviewCard({
   const performance = performanceForReview(show, review.watchedOn)
   const number = showNumber ? show.numbers.find((n) => n.id === review.numberId) : undefined
   return (
-    <Card size="sm">
+    <Card size="sm" id={`review-${review.id}`} className={highlight ? "scroll-mt-4 ring-2 ring-primary" : "scroll-mt-4"}>
       {number && (
         <div className="px-(--card-spacing)">
           <Badge variant="secondary">{numberName(number)}</Badge>
@@ -369,7 +371,9 @@ function ScheduleCard({
   pairOnly,
   onPairOnly,
   wishCount,
+  onTop,
 }: {
+  onTop: (reviewId: string) => void
   show: Show
   store: StoreState
   performance: Performance
@@ -398,12 +402,15 @@ function ScheduleCard({
       </CardHeader>
       <CardContent className="flex flex-col gap-5">
         {top && topNumber && (
-          <figure className="flex flex-col gap-1 rounded-lg bg-muted p-3">
-            <figcaption className="text-sm text-muted-foreground">
-              북마크가 가장 많은 한 줄 · {numberName(topNumber)}
-            </figcaption>
-            <blockquote className="leading-relaxed">“{top.body}”</blockquote>
-          </figure>
+          <button
+            type="button"
+            onClick={() => onTop(top.id)}
+            className="flex flex-col gap-1 rounded-lg bg-muted p-3 text-left"
+          >
+            <span className="text-sm text-muted-foreground">북마크가 가장 많은 한 줄 · {numberName(topNumber)}</span>
+            <span className="leading-relaxed">“{top.body}”</span>
+            <span className="text-sm text-primary">원문 보기 →</span>
+          </button>
         )}
         <div className="flex justify-center">
           <Calendar
@@ -583,7 +590,9 @@ function NumberReviews({
   hidden,
   wished,
   onWish,
+  focusId,
 }: {
+  focusId?: string
   number: Show["numbers"][number]
   show: Show
   store: StoreState
@@ -591,12 +600,16 @@ function NumberReviews({
   wished: boolean
   onWish: () => void
 }) {
-  const [expanded, setExpanded] = useState(false)
   const list = sortReviews(
     show.reviews.filter((review) => review.numberId === number.id),
     "likes",
     store,
   )
+  const [expanded, setExpanded] = useState(false)
+  const hasFocus = !!focusId && list.some((r) => r.id === focusId)
+  useEffect(() => {
+    if (hasFocus) setExpanded(true)
+  }, [hasFocus, focusId])
   const visible = expanded ? list : list.slice(0, REVIEW_PREVIEW)
   const more = list.length - REVIEW_PREVIEW
   return (
@@ -620,7 +633,7 @@ function NumberReviews({
         </Button>
       </div>
       {visible.map((review) => (
-        <ReviewCard key={review.id} review={review} show={show} store={store} hidden={hidden} />
+        <ReviewCard key={review.id} review={review} show={show} store={store} hidden={hidden} highlight={review.id === focusId} />
       ))}
       {more > 0 && (
         <Button variant="ghost" className="self-center" aria-expanded={expanded} onClick={() => setExpanded(!expanded)}>
@@ -647,6 +660,14 @@ function ShowDetailScreen({
   const [sort, setSort] = useState<SortKey>("number")
   const [pairOnly, setPairOnly] = useState(false)
   const [spoiler, setSpoiler] = useState(false)
+  const [focusId, setFocusId] = useState<string>()
+  const goToReview = (id: string) => {
+    setPairOnly(false)
+    setSort("number")
+    setSpoiler(false)
+    setFocusId(id)
+    setTimeout(() => document.getElementById(`review-${id}`)?.scrollIntoView({ behavior: "smooth", block: "center" }), 150)
+  }
   const [wishes, toggleWish] = useWishes(show.id)
   const view: Show = pairOnly ? { ...show, reviews: show.reviews.filter((r) => samePair(show, r, performance)) } : show
   const numbers = pairOnly ? show.numbers.filter((n) => view.reviews.some((r) => r.numberId === n.id)) : show.numbers
@@ -662,6 +683,7 @@ function ShowDetailScreen({
         pairOnly={pairOnly}
         onPairOnly={setPairOnly}
         wishCount={wishes.length}
+        onTop={goToReview}
       />
 
       <NumberMap show={view} wishes={wishes} />
@@ -702,6 +724,7 @@ function ShowDetailScreen({
                 hidden={spoiler}
                 wished={wishes.includes(number.id)}
                 onWish={() => toggleWish(number.id)}
+                focusId={focusId}
               />
             ))}
           </div>
