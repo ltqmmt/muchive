@@ -1,8 +1,10 @@
 "use client"
 
-import { ArrowRight, Bookmark, ChevronLeft, Compass, NotebookPen, PenLine, Plus, Trash2, X } from "lucide-react"
+import { ArrowRight, Bookmark, ChevronLeft, CircleUser, Compass, LogOut, NotebookPen, PenLine, Plus, Trash2, X } from "lucide-react"
+import Link from "next/link"
 import { useState, type ReactNode } from "react"
 
+import { signOut, useAuthUser } from "@/components/gwangeuk/auth"
 import { ClueField, type Clue } from "@/components/gwangeuk/clue-field"
 import {
   AlertDialog,
@@ -78,7 +80,7 @@ import {
   type ShowRecord,
 } from "@/lib/show-data"
 
-type Tab = "explore" | "records" | "bookmarks"
+type Tab = "explore" | "records" | "bookmarks" | "account"
 type View =
   | { name: "tabs" }
   | { name: "write"; showId: string }
@@ -164,6 +166,7 @@ export function GwangeukApp() {
             icon: <Bookmark strokeWidth={2} />,
             badge: store.bookmarks.length || undefined,
           },
+          { value: "account", label: "내 정보", icon: <CircleUser strokeWidth={2} /> },
         ],
       }}
     >
@@ -188,6 +191,7 @@ export function GwangeukApp() {
           onOpen={(recordId) => setView({ name: "result", recordId, justSaved: false })}
         />
       )}
+      {tab === "account" && <AccountScreen />}
       {tab === "bookmarks" && (
         <BookmarksScreen
           store={store}
@@ -1032,6 +1036,67 @@ function BookmarksScreen({ store, onExplore }: { store: StoreState; onExplore: (
               ))}
           </section>
         ))
+      )}
+    </div>
+  )
+}
+
+/* ───────────── 내 정보 (계정) ───────────── */
+
+function AccountScreen() {
+  const user = useAuthUser()
+  const [pending, setPending] = useState(false)
+  return (
+    <div className="flex flex-col gap-6 pt-4 pb-6 break-keep">
+      <MobileScreenHeading>내 정보</MobileScreenHeading>
+      {user === undefined ? (
+        <Card aria-busy="true">
+          <CardHeader>
+            <CardTitle className="text-base font-semibold">로그인 상태를 확인하고 있어요</CardTitle>
+          </CardHeader>
+        </Card>
+      ) : user ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base font-semibold">{user.email}</CardTitle>
+            <CardDescription>
+              {user.created_at && `${new Date(user.created_at).toLocaleDateString("ko-KR")} 가입`}
+              {user.email_confirmed_at ? " · 이메일 확인 완료" : " · 이메일 확인 전"}
+            </CardDescription>
+          </CardHeader>
+          <CardFooter>
+            <Button
+              variant="tertiary"
+              className="w-full"
+              disabled={pending}
+              onClick={async () => {
+                setPending(true)
+                await signOut()
+                setPending(false)
+              }}
+            >
+              <LogOut data-icon="inline-start" strokeWidth={2} aria-hidden />
+              {pending ? "로그아웃 중…" : "로그아웃"}
+            </Button>
+          </CardFooter>
+        </Card>
+      ) : (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base font-semibold">로그인하고 기록을 이어가세요</CardTitle>
+            <CardDescription className="leading-relaxed">
+              이메일로 가입하면 다른 기기에서도 같은 계정으로 로그인할 수 있어요.
+            </CardDescription>
+          </CardHeader>
+          <CardFooter className="flex-col gap-2">
+            <Button asChild className="w-full">
+              <Link href="/signup">회원가입</Link>
+            </Button>
+            <Button asChild variant="tertiary" className="w-full">
+              <Link href="/login">로그인</Link>
+            </Button>
+          </CardFooter>
+        </Card>
       )}
     </div>
   )
