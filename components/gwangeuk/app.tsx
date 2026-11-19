@@ -1,8 +1,8 @@
 "use client"
 
-import { ArrowRight, Bookmark, CalendarDays, ChevronDown, ChevronLeft, CircleUser, Compass, Eye, EyeOff, Heart, LogOut, Star, NotebookPen, PenLine, Plus, Trash2, X } from "lucide-react"
+import { ArrowRight, Bookmark, Sparkles, UserPlus, UserCheck, CalendarDays, ChevronDown, ChevronLeft, CircleUser, Compass, Eye, EyeOff, Heart, LogOut, Star, NotebookPen, PenLine, Plus, Trash2, X } from "lucide-react"
 import Link from "next/link"
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react"
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react"
 
 import { signOut, useAuthUser } from "@/components/gwangeuk/auth"
 import { ClueField, type Clue } from "@/components/gwangeuk/clue-field"
@@ -32,6 +32,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator"
 import { SuccessMark } from "@/components/ui/success-mark"
 import { Textarea } from "@/components/ui/textarea"
+import { Toast } from "@/components/ui/toast"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import {
   addCustomEntry,
@@ -46,11 +47,23 @@ import {
   setDraftText,
   startDraft,
   toggleBookmark,
+  toggleFollow,
   toggleLike,
   updateCustomEntry,
   useRecordStore,
   type StoreState,
 } from "@/lib/record-store"
+import {
+  contextReviews,
+  matchPct,
+  myVector,
+  recommendReviewers,
+  reviewerOf,
+  showVector,
+  topDimensions,
+  DIMENSIONS,
+  type Vec,
+} from "@/lib/taste"
 import {
   findPerformance,
   formatPerformance,
@@ -82,7 +95,19 @@ type Sub = { name: "number"; showId: string; numberId: string } | { name: "revie
 const NavCtx = createContext<{
   openReview: (showId: string, reviewId: string) => void
   openNumber: (showId: string, numberId: string) => void
-}>({ openReview: () => {}, openNumber: () => {} })
+  onSaved: () => void
+}>({ openReview: () => {}, openNumber: () => {}, onSaved: () => {} })
+
+/** 내가 북마크한 후기와 내가 쓴 기록으로 만든 관극 성향. 글이 없으면 빈 값이다. */
+const TasteCtx = createContext<Vec>([])
+
+function useMyTaste(store: StoreState): Vec {
+  return useMemo(() => {
+    const bodies = shows.flatMap((sh) => sh.reviews.filter((r) => store.bookmarks.includes(r.id)).map((r) => r.body))
+    const written = store.records.flatMap((r) => r.entries.map((e) => e.text))
+    return myVector(bodies, written)
+  }, [store.bookmarks, store.records])
+}
 
 type Tab = "explore" | "records" | "bookmarks" | "account"
 type View =
@@ -119,6 +144,8 @@ export function GwangeukApp() {
   const [exploreShowId, setExploreShowId] = useState<string | null>(null)
   const [view, setView] = useState<View>({ name: "tabs" })
   const [stack, setStack] = useState<Sub[]>([])
+  const [toast, setToast] = useState("")
+  const myTaste = useMyTaste(store)
   useEffect(() => {
     const onPop = () => setStack((st) => st.slice(0, -1))
     window.addEventListener("popstate", onPop)
@@ -131,6 +158,7 @@ export function GwangeukApp() {
   const nav = {
     openReview: (showId: string, reviewId: string) => push({ name: "review", showId, reviewId }),
     openNumber: (showId: string, numberId: string) => push({ name: "number", showId, numberId }),
+    onSaved: () => setToast("북마크함에 저장했어요"),
   }
   const sub = stack[stack.length - 1]
 
@@ -162,6 +190,8 @@ export function GwangeukApp() {
 
   return (
     <NavCtx.Provider value={nav}>
+    <TasteCtx.Provider value={myTaste}>
+    <Toast message={toast} onDismiss={() => setToast("")} duration={3500} />
     {sub && <SubScreen sub={sub} store={store} />}
     <div hidden={!!sub}>
     <MobileAppShell
@@ -220,6 +250,7 @@ export function GwangeukApp() {
       )}
     </MobileAppShell>
     </div>
+    </TasteCtx.Provider>
     </NavCtx.Provider>
   )
 }
@@ -320,12 +351,118 @@ function SubScreen({ sub, store }: { sub: Sub; store: StoreState }) {
   )
 }
 
+/* ───────────── 관극 성향 · 비슷한 관객 ───────────── */
+
+function ReviewerRow({ author, pct, store }: { author: string; pct: number; store: StoreState }) {
+  const reviewer = reviewerOf(author)
+  const following = store.follows.includes(author)
+  const dims = reviewer ? topDimensions(reviewer.vec, 2) : []
+  return (
+    <li className="flex items-center gap-3 py-3">
+      <div className="grid size-10 shrink-0 place-items-center rounded-full bg-muted text-base font-bold text-muted-foreground" aria-hidden>
+        {author.slice(0, 1)}
+      </div>
+      <div className="flex min-w-0 flex-1 flex-col">
+        <span className="truncate font-bold">
+          {author} <span className="font-semibold text-primary">{pct}%</span>
+        </span>
+        <span className="truncate text-sm text-muted-foreground">
+          {dims.map((d) => d.label).join(" · ")} · 후기 {reviewer?.reviewCount ?? 0}개
+        </span>
+      </div>
+      <Button
+        variant={following ? "secondary" : "outline"}
+        size="sm"
+        aria-pressed={following}
+        aria-label={following ? `${author} 팔로우 취소` : `${author} 팔로우`}
+        onClick={() => toggleFollow(author)}
+      >
+        {following ? <UserCheck data-icon="inline-start" strokeWidth={2} aria-hidden /> : <UserPlus data-icon="inline-start" strokeWidth={2} aria-hidden />}
+        {following ? "팔로잉" : "팔로우"}
+      </Button>
+    </li>
+  )
+}
+
+/** 나와 성향이 비슷한 관객. 내 성향이 아직 없으면 북마크를 안내한다. */
+function SimilarReviewers({ store, showId, title }: { store: StoreState; showId?: string; title: string }) {
+  const my = useContext(TasteCtx)
+  const list = recommendReviewers(my, { showId, limit: 3 })
+  return (
+    <section className="flex flex-col gap-1 px-1" aria-label={title}>
+      <h2 className="text-xl font-bold">{title}</h2>
+      {list.length === 0 ? (
+        <p className="py-2 leading-relaxed text-muted-foreground">
+          마음에 드는 후기를 북마크하면 성향이 비슷한 관객을 찾아 드려요.
+        </p>
+      ) : (
+        <ul className="flex flex-col divide-y divide-border">
+          {list.map(({ reviewer, pct }) => (
+            <ReviewerRow key={reviewer.author} author={reviewer.author} pct={pct} store={store} />
+          ))}
+        </ul>
+      )}
+    </section>
+  )
+}
+
+function TasteProfile() {
+  const my = useContext(TasteCtx)
+  const sum = my.reduce((a, b) => a + b, 0)
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base font-semibold">내 관극 성향</CardTitle>
+        <CardDescription className="leading-relaxed">
+          {sum === 0
+            ? "북마크한 후기와 내가 쓴 기록이 쌓이면 어떤 순간을 좋아하는지 보여 드려요."
+            : `북마크한 후기와 내 기록에서 ${topDimensions(my, 1)[0].label}에 가장 마음이 갔어요.`}
+        </CardDescription>
+      </CardHeader>
+      {sum > 0 && (
+        <CardContent className="flex flex-col gap-3">
+          {DIMENSIONS.map((d, i) => (
+            <div key={d.key} className="flex items-center gap-3">
+              <span className="w-24 shrink-0 text-sm">{d.label}</span>
+              <Progress value={(my[i] / sum) * 100} aria-label={`${d.label} ${Math.round((my[i] / sum) * 100)}%`} />
+              <span className="w-10 shrink-0 text-right text-sm text-muted-foreground tabular-nums">
+                {Math.round((my[i] / sum) * 100)}%
+              </span>
+            </div>
+          ))}
+        </CardContent>
+      )}
+    </Card>
+  )
+}
+
 /* ───────────── 탐색: 공연 목록 ───────────── */
 
 function ShowListScreen({ store, onOpen }: { store: StoreState; onOpen: (showId: string) => void }) {
+  const my = useContext(TasteCtx)
+  // 첫 화면에서 바로 저장할 수 있게, 다른 관객이 많이 저장한 후기를 올려 둔다.
+  const hot = shows
+    .flatMap((sh) => sh.reviews.map((review) => ({ show: sh, review })))
+    .sort((a, b) => b.review.bookmarks - a.review.bookmarks)
+    .slice(0, 3)
   return (
     <div className="flex flex-col gap-6 pt-4 pb-6 break-keep">
       <MobileScreenHeading>탐색</MobileScreenHeading>
+      <section aria-labelledby="hot-title" className="flex flex-col px-1">
+        <h2 id="hot-title" className="text-xl font-bold">
+          다른 관객이 많이 저장한 순간
+        </h2>
+        <p className="text-muted-foreground">보고 싶은 장면은 북마크해 두고, 공연 보기 직전에 다시 확인하세요.</p>
+        {hot.map(({ show, review }) => (
+          <div key={review.id}>
+            <p className="mt-3 text-sm font-semibold text-muted-foreground">
+              {show.title} · {numberLabel(show, review.numberId)}
+            </p>
+            <ReviewCard review={review} show={show} store={store} plain />
+          </div>
+        ))}
+      </section>
+      <h2 className="px-1 text-xl font-bold">공연 둘러보기</h2>
       <ul className="flex flex-col gap-3">
         {shows.map((show) => {
           const saved = show.reviews.filter((r) => store.bookmarks.includes(r.id)).length
@@ -347,6 +484,14 @@ function ShowListScreen({ store, onOpen }: { store: StoreState; onOpen: (showId:
                   <span className="text-sm font-normal text-muted-foreground">
                     후기 {show.reviews.length}개{saved > 0 && ` · 북마크 ${saved}개`}
                     {inProgress && " · 작성 중"}
+                  </span>
+                  <span className="flex flex-wrap items-center gap-2 pt-1">
+                    {matchPct(my, showVector(show)) != null && (
+                      <Badge variant="secondary">내 성향과 {matchPct(my, showVector(show))}% 맞는 공연</Badge>
+                    )}
+                    <span className="text-sm font-normal text-muted-foreground">
+                      후기는 {topDimensions(showVector(show), 2).map((d) => d.label).join("·")} 위주
+                    </span>
                   </span>
                   <span className="mt-1 line-clamp-2 text-base leading-relaxed font-normal">
                     “{[...show.reviews].sort((a, b) => b.bookmarks - a.bookmarks)[0]?.body}”
@@ -420,6 +565,10 @@ function ReviewCard({
   const [peek, setPeek] = useState(false)
   const nav = useContext(NavCtx)
   const threadCount = threadOf(show, review).length
+  const my = useContext(TasteCtx)
+  const reviewer = reviewerOf(review.author)
+  const pct = reviewer ? matchPct(my, reviewer.vec) : null
+  const following = store.follows.includes(review.author)
   const open = () => (onBody ? onBody() : nav.openReview(show.id, review.id))
   const action =
     "flex h-9 items-center gap-1.5 rounded-full px-2 text-sm tabular-nums transition-colors hover:bg-muted active:scale-95 motion-reduce:transition-none"
@@ -436,9 +585,20 @@ function ReviewCard({
         <div className="flex min-w-0 items-baseline gap-1.5">
           <span className="truncate font-bold">{review.author}</span>
           <span className="shrink-0 text-sm text-muted-foreground">· {review.watchedOn} 관람</span>
+          <Button
+            variant={following ? "secondary" : "outline"}
+            size="xs"
+            className="ml-auto shrink-0"
+            aria-pressed={following}
+            aria-label={following ? `${review.author} 팔로우 취소` : `${review.author} 팔로우`}
+            onClick={() => toggleFollow(review.author)}
+          >
+            {following ? "팔로잉" : "팔로우"}
+          </Button>
         </div>
-        {(performance || number) && (
+        {(performance || number || pct != null) && (
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
+            {pct != null && <span className="font-semibold text-primary">나와 {pct}% 비슷해요</span>}
             {performance && <span>{pairShort(performance)}</span>}
             {number && <Badge variant="secondary">{numberName(number)}</Badge>}
           </div>
@@ -480,7 +640,10 @@ function ReviewCard({
             type="button"
             aria-pressed={bookmarked}
             aria-label={bookmarked ? `${review.author}님의 후기 북마크 해제` : `${review.author}님의 후기 북마크`}
-            onClick={() => toggleBookmark(review.id)}
+            onClick={() => {
+              toggleBookmark(review.id)
+              if (!bookmarked) nav.onSaved()
+            }}
             className={`${action} ${bookmarked ? "text-primary" : "text-muted-foreground"}`}
           >
             <Bookmark className="size-[18px]" strokeWidth={2} fill={bookmarked ? "currentColor" : "none"} aria-hidden />
@@ -852,6 +1015,8 @@ function ShowDetailScreen({
 
       <NumberMap show={view} wishes={wishes} />
 
+      <SimilarReviewers store={store} showId={show.id} title="나와 비슷하게 보는 관객" />
+
       <div className="flex flex-col gap-3 px-1">
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-bold">관객 후기</h2>
@@ -1091,6 +1256,12 @@ function WriteScreen({
                             onFocus={() => startDraft(show.id)}
                             onChange={(t) => setDraftText(show.id, number.id, t)}
                           />
+                          <ContextHits
+                            show={show}
+                            numberId={number.id}
+                            text={text}
+                            exclude={store.bookmarks}
+                          />
                           {text.trim() && (
                             <Button variant="ghost" size="sm" className="self-end" onClick={() => goNext(number.id)}>
                               다음 넘버로
@@ -1168,6 +1339,45 @@ function WriteScreen({
         </Button>
       </div>
     </MobileAppShell>
+  )
+}
+
+/* ───────────── 다시 쓰기: 내 글과 맞닿은 앞뒤 맥락 ───────────── */
+
+const RELATION: Record<"before" | "same" | "after", string> = { before: "바로 앞 장면", same: "같은 장면", after: "바로 뒤 장면" }
+
+/** 내가 쓴 글이 길어질수록 앞뒤 장면의 다른 관객 후기를 붙여 보여, 이어지는 기억을 떠올리게 한다. */
+function ContextHits({
+  show,
+  numberId,
+  text,
+  exclude,
+}: {
+  show: Show
+  numberId: string
+  text: string
+  exclude: string[]
+}) {
+  const hits = useMemo(
+    () => (text.trim().length >= 6 ? contextReviews(show, numberId, text, exclude) : []),
+    [show, numberId, text, exclude],
+  )
+  if (hits.length === 0) return null
+  return (
+    <div className="flex flex-col gap-2 rounded-lg bg-muted p-3" aria-live="polite">
+      <p className="flex items-center gap-1.5 text-sm font-semibold">
+        <Sparkles className="size-4" strokeWidth={2} aria-hidden />
+        앞뒤 장면에서 다른 관객은 이렇게 기억했어요
+      </p>
+      {hits.map(({ review, relation }) => (
+        <div key={review.id} className="flex flex-col gap-0.5">
+          <span className="text-sm text-muted-foreground">
+            {RELATION[relation]} · {numberLabel(show, review.numberId)} · {review.author}
+          </span>
+          <span className="line-clamp-3 leading-relaxed">{review.body}</span>
+        </div>
+      ))}
+    </div>
   )
 }
 
@@ -1446,6 +1656,8 @@ function BookmarksScreen({ store, onExplore }: { store: StoreState; onExplore: (
   return (
     <div className="flex flex-col gap-6 pt-4 pb-6 break-keep">
       <MobileScreenHeading>북마크함</MobileScreenHeading>
+      <TasteProfile />
+      <SimilarReviewers store={store} title="나와 맞는 관객" />
       {groups.length === 0 ? (
         <Card>
           <CardHeader>

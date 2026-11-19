@@ -23,6 +23,8 @@ export type StoreState = {
   bookmarks: string[]
   /** 내가 좋아요한 후기 id */
   likes: string[]
+  /** 내가 팔로우한 관객 닉네임 */
+  follows: string[]
   records: ShowRecord[]
   /** 공연별 작성 중인 기록 */
   drafts: Record<string, Draft>
@@ -36,6 +38,7 @@ export const emptyDraft: Draft = { texts: {}, custom: [], startedAt: null }
 const initialState: StoreState = {
   bookmarks: [],
   likes: [],
+  follows: [],
   records: seedRecords,
   drafts: {},
 }
@@ -62,6 +65,7 @@ function migrateV1(raw: string): StoreState {
   return {
     bookmarks: (v1.bookmarks ?? []).map(rev),
     likes: [],
+    follows: [],
     records,
     drafts: draft
       ? {
@@ -129,6 +133,7 @@ function load() {
       state = {
         bookmarks: Array.isArray(saved.bookmarks) ? saved.bookmarks : initialState.bookmarks,
         likes: Array.isArray(saved.likes) ? saved.likes : [],
+        follows: Array.isArray(saved.follows) ? saved.follows : [],
         records: Array.isArray(saved.records) ? saved.records : initialState.records,
         drafts: saved.drafts && typeof saved.drafts === "object" ? saved.drafts : {},
       }
@@ -188,6 +193,11 @@ export function toggleBookmark(reviewId: string) {
     ...state,
     bookmarks: has ? state.bookmarks.filter((id) => id !== reviewId) : [...state.bookmarks, reviewId],
   })
+}
+
+export function toggleFollow(author: string) {
+  const has = state.follows.includes(author)
+  setState({ ...state, follows: has ? state.follows.filter((a) => a !== author) : [...state.follows, author] })
 }
 
 export function toggleLike(reviewId: string) {
