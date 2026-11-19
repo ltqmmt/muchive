@@ -743,9 +743,26 @@ function NumberReviews({
     <section aria-labelledby={`explore-${number.id}`} className="flex flex-col gap-3">
       <div className="flex items-start justify-between gap-2 px-1">
         <div className="flex flex-col gap-1">
-          <h3 id={`explore-${number.id}`} className="scroll-mt-4 text-base font-semibold">
-            {numberName(number)}
-          </h3>
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <h3 id={`explore-${number.id}`} className="scroll-mt-4 text-base font-semibold">
+              {numberName(number)}
+            </h3>
+            {number.characters && (
+              <button
+                type="button"
+                aria-expanded={showCast}
+                onClick={() => setShowCast(!showCast)}
+                className="flex h-6 items-center gap-0.5 rounded-full bg-muted px-2 text-xs font-medium text-muted-foreground hover:text-foreground"
+              >
+                등장인물
+                <ChevronDown
+                  className={`size-3.5 transition-transform ${showCast ? "rotate-180" : ""}`}
+                  strokeWidth={2}
+                  aria-hidden
+                />
+              </button>
+            )}
+          </div>
           <p className="text-sm leading-relaxed text-muted-foreground">{number.scene}</p>
           {number.characters && showCast && (
             <p className="text-sm leading-relaxed">
@@ -754,24 +771,6 @@ function NumberReviews({
             </p>
           )}
         </div>
-        <div className="flex shrink-0 items-center">
-        {number.characters && (
-          <Button
-            variant="ghost"
-            size="sm"
-            aria-expanded={showCast}
-            onClick={() => setShowCast(!showCast)}
-            className="text-muted-foreground"
-          >
-            등장인물
-            <ChevronDown
-              data-icon="inline-end"
-              strokeWidth={2}
-              aria-hidden
-              className={showCast ? "rotate-180 transition-transform" : "transition-transform"}
-            />
-          </Button>
-        )}
         <Button
           variant="ghost"
           size="icon"
@@ -782,7 +781,6 @@ function NumberReviews({
         >
           <Star strokeWidth={2} fill={wished ? "currentColor" : "none"} aria-hidden />
         </Button>
-        </div>
       </div>
       <div className="flex flex-col">
         {visible.map((review) => (
