@@ -11,6 +11,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from "@/components/ui/input"
 import { MobileAppShell, MobileScreenHeading, MobileToolbarButton } from "@/components/ui/mobile-app-shell"
 import { SuccessMark } from "@/components/ui/success-mark"
+import { sendSignUpOnce } from "@/lib/analytics"
 import { confirmRedirectUrl, getSupabase } from "@/lib/supabase/client"
 
 /* ───────────── 세션 ───────────── */
@@ -285,6 +286,9 @@ export function LoginScreen() {
 
 export function WelcomeScreen() {
   const user = useAuthUser()
+  useEffect(() => {
+    sendSignUpOnce()
+  }, [])
   return (
     <AuthShell title="가입 완료">
       <div className="flex flex-col items-center gap-4 pt-6 text-center">
@@ -300,9 +304,9 @@ export function WelcomeScreen() {
 }
 
 export function AuthErrorScreen() {
-  const reason = (useSearchParams().get("reason") ?? "").toLowerCase()
-  const expired = reason.includes("expired") || reason.includes("invalid")
-  const otherBrowser = reason.includes("code verifier") || reason.includes("code_verifier")
+  const reason = useSearchParams().get("reason") ?? ""
+  const expired = reason === "expired"
+  const otherBrowser = reason === "other_browser"
   return (
     <AuthShell title="이메일 확인">
       <Card>

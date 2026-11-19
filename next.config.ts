@@ -1,7 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Vercel 배포 종류(production/preview)를 브라우저 코드에서도 알 수 있게 한다. 로컬은 빈 값.
+  env: { NEXT_PUBLIC_DEPLOY_ENV: process.env.VERCEL_ENV ?? "" },
   cacheComponents: true,
   partialPrefetching: true,
   turbopack: {
