@@ -1,6 +1,6 @@
 "use client"
 
-import { ArrowRight, Bookmark, CalendarDays, ChevronLeft, CircleUser, Compass, Eye, EyeOff, LogOut, Star, NotebookPen, PenLine, Plus, Trash2, X } from "lucide-react"
+import { ArrowRight, Bookmark, CalendarDays, ChevronLeft, CircleUser, Compass, Eye, EyeOff, Heart, LogOut, Star, NotebookPen, PenLine, Plus, Trash2, X } from "lucide-react"
 import Link from "next/link"
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react"
 
@@ -19,7 +19,6 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Calendar } from "@/components/ui/calendar"
-import { LikeButton } from "@/components/ui/like-button"
 import { Button } from "@/components/ui/button"
 import { Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -310,7 +309,13 @@ function SubScreen({ sub, store }: { sub: Sub; store: StoreState }) {
             <ArrowRight data-icon="inline-end" strokeWidth={2} aria-hidden />
           </Button>
         )}
-        {sub.name === "number" && list.map((r) => <ReviewCard key={r.id} review={r} show={show} store={store} />)}
+        {sub.name === "number" && (
+          <div className="flex flex-col">
+            {list.map((r) => (
+              <ReviewCard key={r.id} review={r} show={show} store={store} />
+            ))}
+          </div>
+        )}
       </div>
     </MobileAppShell>
   )
@@ -410,76 +415,81 @@ function ReviewCard({
   /** 스포일러 가리기 */
   hidden?: boolean
 }) {
-  const [peek, setPeek] = useState(false)
-  const nav = useContext(NavCtx)
   const { liked, bookmarked, likes, bookmarks } = reviewCounts(review, store)
   const performance = performanceForReview(show, review.watchedOn)
   const number = showNumber ? show.numbers.find((n) => n.id === review.numberId) : undefined
+  const [peek, setPeek] = useState(false)
+  const nav = useContext(NavCtx)
+  const threadCount = threadOf(show, review).length
+  const open = () => (onBody ? onBody() : nav.openReview(show.id, review.id))
+  const action =
+    "flex h-9 items-center gap-1.5 rounded-full px-2 text-sm tabular-nums transition-colors hover:bg-muted active:scale-95 motion-reduce:transition-none"
+
   return (
-    <Card size="sm" id={`review-${review.id}`} >
-      {number && (
-        <div className="px-(--card-spacing)">
-          <Badge variant="secondary">{numberName(number)}</Badge>
+    <article id={`review-${review.id}`} className="flex gap-3 border-b border-border px-1 py-4">
+      <div
+        className="grid size-10 shrink-0 place-items-center rounded-full bg-muted text-base font-bold text-muted-foreground"
+        aria-hidden
+      >
+        {review.author.slice(0, 1)}
+      </div>
+      <div className="flex min-w-0 flex-1 flex-col">
+        <div className="flex min-w-0 items-baseline gap-1.5">
+          <span className="truncate font-bold">{review.author}</span>
+          <span className="shrink-0 text-sm text-muted-foreground">· {review.watchedOn} 관람</span>
         </div>
-      )}
-      <CardHeader>
-        <CardTitle className="text-sm font-semibold">{review.author}</CardTitle>
-        <CardDescription className="text-xs leading-normal">
-          {review.watchedOn} 관람{performance && ` · ${pairShort(performance)}`}
-          {!plain && !onBody && threadOf(show, review).length > 1 && ` · 관극 후기 이어 읽기 (${threadOf(show, review).length}개 넘버)`}
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
+        {(performance || number) && (
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
+            {performance && <span>{pairShort(performance)}</span>}
+            {number && <Badge variant="secondary">{numberName(number)}</Badge>}
+          </div>
+        )}
         {hidden && !peek ? (
-          <button type="button" onClick={() => setPeek(true)} className="text-left leading-relaxed text-muted-foreground">
+          <button type="button" onClick={() => setPeek(true)} className="mt-2 text-left leading-relaxed text-muted-foreground">
             <span className="blur-sm select-none" aria-hidden>{review.body}</span>
             <span className="sr-only">스포일러 가림. 눌러서 보기</span>
           </button>
         ) : plain ? (
-          <p className="leading-relaxed">{review.body}</p>
+          <p className="mt-2 leading-relaxed">{review.body}</p>
         ) : (
           <button
             type="button"
             aria-label={`${review.author}님의 후기 전문 보기`}
-            onClick={() => (onBody ? onBody() : nav.openReview(show.id, review.id))}
-            className="text-left leading-relaxed"
+            onClick={open}
+            className="mt-2 text-left leading-relaxed"
           >
             {review.body}
           </button>
         )}
-      </CardContent>
-      <CardFooter className="gap-4 pt-0 pb-2">
-        <div className="flex items-center">
-          <LikeButton
-            key={String(liked)}
-            defaultLiked={liked}
-            label={`${review.author}님의 후기 좋아요`}
-            unlikeLabel={`${review.author}님의 후기 좋아요 취소`}
-            onLikedChange={() => toggleLike(review.id)}
-          />
-          <span className="text-sm text-muted-foreground tabular-nums">
-            <span className="sr-only">좋아요 </span>
+        {!plain && !onBody && threadCount > 1 && (
+          <button type="button" onClick={open} className="mt-2 self-start text-sm font-medium text-primary">
+            관극 후기 이어 읽기 · 넘버 {threadCount}개 →
+          </button>
+        )}
+        <div className="mt-2 -ml-2 flex items-center gap-4">
+          <button
+            type="button"
+            aria-pressed={liked}
+            aria-label={liked ? `${review.author}님의 후기 좋아요 취소` : `${review.author}님의 후기 좋아요`}
+            onClick={() => toggleLike(review.id)}
+            className={`${action} ${liked ? "text-rose-500" : "text-muted-foreground"}`}
+          >
+            <Heart className="size-[18px]" strokeWidth={2} fill={liked ? "currentColor" : "none"} aria-hidden />
             {likes.toLocaleString("ko-KR")}
-          </span>
-        </div>
-        <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="icon"
+          </button>
+          <button
+            type="button"
             aria-pressed={bookmarked}
             aria-label={bookmarked ? `${review.author}님의 후기 북마크 해제` : `${review.author}님의 후기 북마크`}
             onClick={() => toggleBookmark(review.id)}
-            className={bookmarked ? "text-primary" : "text-muted-foreground"}
+            className={`${action} ${bookmarked ? "text-primary" : "text-muted-foreground"}`}
           >
-            <Bookmark strokeWidth={2} fill={bookmarked ? "currentColor" : "none"} aria-hidden />
-          </Button>
-          <span className="text-sm text-muted-foreground tabular-nums">
-            <span className="sr-only">북마크 </span>
+            <Bookmark className="size-[18px]" strokeWidth={2} fill={bookmarked ? "currentColor" : "none"} aria-hidden />
             {bookmarks.toLocaleString("ko-KR")}
-          </span>
+          </button>
         </div>
-      </CardFooter>
-    </Card>
+      </div>
+    </article>
   )
 }
 
@@ -688,7 +698,7 @@ function FlatReviews({ show, store, sort, hidden }: { show: Show; store: StoreSt
   const list = sortReviews(show.reviews, sort, store)
   const rest = list.length - count
   return (
-    <ol className="flex flex-col gap-3" aria-label="후기 목록">
+    <ol className="flex flex-col" aria-label="후기 목록">
       {list.slice(0, count).map((review) => (
         <li key={review.id}>
           <ReviewCard review={review} show={show} store={store} showNumber hidden={hidden} />
@@ -748,9 +758,11 @@ function NumberReviews({
           <Star strokeWidth={2} fill={wished ? "currentColor" : "none"} aria-hidden />
         </Button>
       </div>
-      {visible.map((review) => (
-        <ReviewCard key={review.id} review={review} show={show} store={store} hidden={hidden} />
-      ))}
+      <div className="flex flex-col">
+        {visible.map((review) => (
+          <ReviewCard key={review.id} review={review} show={show} store={store} hidden={hidden} />
+        ))}
+      </div>
       {more > 0 && (
         <Button variant="outline" className="self-start" onClick={() => nav.openNumber(show.id, number.id)}>
           전체 후기 보러가기 ({list.length})
