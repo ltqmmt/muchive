@@ -98,11 +98,9 @@ function bookmarkedFor(show: Show, numberId: string, bookmarks: string[]) {
     .find((review): review is AudienceReview => review?.numberId === numberId)
 }
 
-function clueFor(show: Show, numberId: string, bookmarks: string[]): Clue {
+function clueFor(show: Show, numberId: string, bookmarks: string[]): Clue | undefined {
   const saved = bookmarkedFor(show, numberId, bookmarks)
-  if (saved) return { kind: "bookmark", text: saved.body, author: saved.author }
-  const number = show.numbers.find((n) => n.id === numberId)!
-  return { kind: "ai", text: number.aiReview }
+  return saved ? { kind: "bookmark", text: saved.body, author: saved.author } : undefined
 }
 
 function numberLabel(show: Show, numberId: string) {
@@ -877,7 +875,7 @@ function WriteScreen({
   const filled = filledNumbers(show, store)
   const canSave = draftHasText(draft)
   const bookmarkedNumbers = show.numbers.filter((n) => bookmarkedFor(show, n.id, store.bookmarks))
-  // 북마크가 없으면(최초 작성) 넘버 순서와 장면 설명을 바탕으로 한 AI 모의 후기를 단서로 쓴다.
+  // 북마크한 후기가 없으면 모든 넘버를 단서 없이 빈 칸으로 보여준다.
   const clueNumbers = bookmarkedNumbers.length > 0 ? bookmarkedNumbers : show.numbers
   const [wishes] = useWishes(show.id)
   const wishNames = show.numbers.filter((n) => wishes.includes(n.id)).map(numberName)
@@ -905,7 +903,7 @@ function WriteScreen({
               size="md"
               className="flex-1"
               disabled={!canSave || !performance}
-              onClick={() => onSaved(saveDraft(show.id, (id) => clueFor(show, id, store.bookmarks).kind))}
+              onClick={() => onSaved(saveDraft(show.id, (id) => clueFor(show, id, store.bookmarks) ? "bookmark" : "own"))}
             >
               기록 저장
             </Button>
